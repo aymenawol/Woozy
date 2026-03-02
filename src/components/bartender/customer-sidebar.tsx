@@ -51,7 +51,7 @@ export function CustomerSidebar({
                 key={session.id}
                 onClick={() => onSelect(session.id)}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-accent cursor-pointer",
                   isSelected && "bg-accent",
                   risk === "danger" &&
                     "border border-destructive/50 bg-destructive/5"

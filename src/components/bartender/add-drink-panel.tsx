@@ -49,7 +49,7 @@ export function AddDrinkPanel({ sessionId }: AddDrinkPanelProps) {
             key={cat}
             onClick={() => setActiveCategory(cat)}
             className={cn(
-              "flex items-center gap-1 whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:gap-1.5 sm:px-3",
+              "flex items-center gap-1 whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer sm:gap-1.5 sm:px-3",
               activeCategory === cat
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -71,7 +71,7 @@ export function AddDrinkPanel({ sessionId }: AddDrinkPanelProps) {
               onClick={() => handleAdd(drink)}
               disabled={adding !== null}
               className={cn(
-                "group flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-all",
+                "group flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-all cursor-pointer",
                 "hover:border-primary hover:bg-accent",
                 "active:scale-95",
                 "disabled:opacity-50 disabled:cursor-not-allowed",

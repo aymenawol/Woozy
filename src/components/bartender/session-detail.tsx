@@ -1,9 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import { ActiveSession } from "@/lib/types";
 import { estimateBAC, bacRiskLevel, formatBAC } from "@/lib/bac";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -24,10 +24,6 @@ function formatTime(iso: string) {
   });
 }
 
-function formatCurrency(cents: number) {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
 export function SessionDetail({ session, onEndSession }: SessionDetailProps) {
   const { customer, drinks } = session;
   const bac = estimateBAC(drinks, customer.weight_lbs, customer.gender);
@@ -42,9 +38,19 @@ export function SessionDetail({ session, onEndSession }: SessionDetailProps) {
   // BAC as percentage of 0.15 for the progress bar (cap at 100)
   const bacPercent = Math.min((bac / 0.15) * 100, 100);
 
+  // Session duration
+  const durationStr = useMemo(() => {
+    const mins = Math.floor(
+      (Date.now() - new Date(session.started_at).getTime()) / 60000
+    );
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  }, [session.started_at]);
+
   return (
     <div className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3 sm:gap-4 sm:p-6">
-      {/* Header with QR Code */}
+      {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h1 className="text-lg font-semibold tracking-tight truncate sm:text-2xl">
@@ -59,6 +65,7 @@ export function SessionDetail({ session, onEndSession }: SessionDetailProps) {
           <Button
             variant="outline"
             size="sm"
+            className="cursor-pointer"
             onClick={() => onEndSession(session.id)}
           >
             End Session
@@ -66,101 +73,62 @@ export function SessionDetail({ session, onEndSession }: SessionDetailProps) {
         </div>
       </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-4">
-        {/* BAC Card */}
-        <Card
-          className={cn(
-            risk === "danger" && "border-destructive",
-            risk === "caution" && "border-yellow-500"
-          )}
-        >
-          <CardHeader className="pb-1 sm:pb-2">
-            <CardTitle className="text-[10px] font-medium text-muted-foreground sm:text-xs">
-              Estimated BAC
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:gap-2">
+      {/* BAC — primary stat */}
+      <Card
+        className={cn(
+          risk === "danger" && "border-destructive",
+          risk === "caution" && "border-yellow-500"
+        )}
+      >
+        <CardContent className="py-4 sm:py-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider sm:text-xs">
+                Estimated BAC
+              </p>
               <span
                 className={cn(
-                  "text-xl font-bold tabular-nums sm:text-3xl",
+                  "text-3xl font-bold tabular-nums sm:text-4xl",
                   risk === "danger" && "text-destructive",
                   risk === "caution" && "text-yellow-600"
                 )}
               >
                 {formatBAC(bac)}
               </span>
-              {risk === "danger" && (
-                <Badge variant="destructive" className="mb-1">
-                  ⚠ Over limit
-                </Badge>
-              )}
-              {risk === "caution" && (
-                <Badge
-                  variant="outline"
-                  className="mb-1 border-yellow-500 text-yellow-600"
-                >
-                  Approaching
-                </Badge>
-              )}
             </div>
-            <Progress
-              value={bacPercent}
-              className={cn(
-                "mt-3 h-2",
-                risk === "danger" && "[&>[data-slot=indicator]]:bg-destructive",
-                risk === "caution" && "[&>[data-slot=indicator]]:bg-yellow-500"
-              )}
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              0.08% legal limit
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Total Drinks */}
-        <Card>
-          <CardHeader className="pb-1 sm:pb-2">
-            <CardTitle className="text-[10px] font-medium text-muted-foreground sm:text-xs">
-              Total Drinks
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <span className="text-xl font-bold tabular-nums sm:text-3xl">
-              {drinks.length}
-            </span>
-            <p className="mt-1 text-xs text-muted-foreground">
-              this session
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Session Duration */}
-        <Card>
-          <CardHeader className="pb-1 sm:pb-2">
-            <CardTitle className="text-[10px] font-medium text-muted-foreground sm:text-xs">
-              Session Duration
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <span className="text-xl font-bold tabular-nums sm:text-3xl">
-              {(() => {
-                const mins = Math.floor(
-                  (Date.now() - new Date(session.started_at).getTime()) /
-                    60000
-                );
-                const h = Math.floor(mins / 60);
-                const m = mins % 60;
-                return h > 0 ? `${h}h ${m}m` : `${m}m`;
-              })()}
-            </span>
-            <p className="mt-1 text-xs text-muted-foreground">
-              since {formatTime(session.started_at)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+            {/* Secondary stats inline */}
+            <div className="flex gap-4 text-right">
+              <div>
+                <p className="text-[10px] font-medium text-muted-foreground sm:text-xs">
+                  Drinks
+                </p>
+                <span className="text-base font-semibold tabular-nums sm:text-lg">
+                  {drinks.length}
+                </span>
+              </div>
+              <div>
+                <p className="text-[10px] font-medium text-muted-foreground sm:text-xs">
+                  Duration
+                </p>
+                <span className="text-base font-semibold tabular-nums sm:text-lg">
+                  {durationStr}
+                </span>
+              </div>
+            </div>
+          </div>
+          <Progress
+            value={bacPercent}
+            className={cn(
+              "mt-3 h-2",
+              risk === "danger" && "[&>[data-slot=indicator]]:bg-destructive",
+              risk === "caution" && "[&>[data-slot=indicator]]:bg-yellow-500"
+            )}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            0.08% legal limit
+          </p>
+        </CardContent>
+      </Card>
 
       <Separator />
 
@@ -201,4 +169,3 @@ export function SessionDetail({ session, onEndSession }: SessionDetailProps) {
     </div>
   );
 }
-

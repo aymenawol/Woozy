@@ -97,7 +97,7 @@ export default function BartenderPage() {
       <div className="flex flex-1 flex-col min-w-0">
         {/* Mobile header */}
         <div className="flex items-center gap-2 border-b px-3 py-2 md:hidden">
-          <button onClick={() => setShowSidebar(true)} className="p-1.5 rounded-lg hover:bg-muted">
+          <button onClick={() => setShowSidebar(true)} className="p-1.5 rounded-lg hover:bg-muted cursor-pointer">
             <Menu className="size-5" />
           </button>
           <span className="text-sm font-semibold truncate flex-1">
@@ -130,7 +130,7 @@ export default function BartenderPage() {
       <Button
         onClick={handleShowQR}
         size="lg"
-        className="fixed bottom-4 left-4 z-40 gap-2 rounded-full shadow-lg sm:bottom-6 sm:left-6"
+        className="fixed bottom-4 left-4 z-40 gap-2 rounded-full shadow-lg cursor-pointer sm:bottom-6 sm:left-6"
         disabled={qrLoading}
       >
         <QrCode className="size-5" />
@@ -150,7 +150,7 @@ export default function BartenderPage() {
           >
             <button
               onClick={handleCloseQR}
-              className="absolute right-4 top-4 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              className="absolute right-4 top-4 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
             >
               <X className="size-5" />
             </button>
