@@ -71,7 +71,7 @@ function SignUpPageContent() {
           <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10 sm:size-20">
             <Wine className="size-8 text-primary sm:size-10" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">SOBR</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Woozy</h1>
           <p className="text-muted-foreground">Your personal drinking companion</p>
         </div>
 

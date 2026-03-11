@@ -101,7 +101,7 @@ export default function BartenderPage() {
             <Menu className="size-5" />
           </button>
           <span className="text-sm font-semibold truncate flex-1">
-            {selectedSession ? selectedSession.customer.name : 'SOBR Bartender'}
+            {selectedSession ? selectedSession.customer.name : 'Woozy Bartender'}
           </span>
           <span className="text-xs text-muted-foreground">
             {sessions.length} session{sessions.length !== 1 ? 's' : ''}

@@ -13,14 +13,8 @@ import { DotTrackerCanvas } from './dot-tracker-canvas';
 // ============================================================
 // Eye Tracking Focus Check  (MediaPipe FaceMesh)
 //
-// 10-second ocular tracking test:
-//  - MediaPipe FaceMesh extracts iris + head pose each frame
-//  - A moving dot stimulus oscillates across the screen
-//  - Tracking error, jitter, correction freq, head drift are measured
-//  - Metrics are compared to the user's baseline
-//  - Produces focusDeltaPercent & impairmentContributionScore
-//
-// No video is stored. Only derived metrics are saved.
+// Shows the camera feed so the user knows they're being scanned.
+// Uses relative iris gaze for accurate tracking measurement.
 // ============================================================
 
 interface FocusCheckProps {
@@ -86,10 +80,10 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
     const impairmentResult: ImpairmentResult = {
       type: 'focus',
       rawMetrics: {
-        trackingError: result.rawMetrics.trackingError,
-        jitterVariance: result.rawMetrics.jitterVariance,
-        correctionRate: result.rawMetrics.correctionRate,
-        headDrift: result.rawMetrics.headDrift,
+        pursuitGain: result.rawMetrics.pursuitGain,
+        saccadeRate: result.rawMetrics.saccadeRate,
+        positionError: result.rawMetrics.positionError,
+        gazeStability: result.rawMetrics.gazeStability,
       },
       baselineDelta: result.score.focusDeltaPercent,
       impairmentContributionScore: result.score.focusDeltaPercent,
@@ -104,6 +98,9 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
 
   const combinedError = errorMsg || meshError;
 
+  // Whether to show the camera preview (during active phases)
+  const showCamera = phase === 'camera' || phase === 'calibrating' || phase === 'tracking';
+
   return (
     <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-t-2xl sm:rounded-2xl border bg-background shadow-2xl overflow-hidden max-h-[95dvh] flex flex-col">
@@ -115,7 +112,7 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
             </div>
             <div>
               <h2 className="font-bold text-sm sm:text-base">Focus Check</h2>
-              <p className="text-[10px] sm:text-xs text-muted-foreground">MediaPipe eye tracking</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Eye tracking analysis</p>
             </div>
           </div>
           <button onClick={handleCancel} className="p-1.5 rounded-full hover:bg-muted">
@@ -123,10 +120,14 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
           </button>
         </div>
 
-        {/* Hidden video element for camera stream */}
+        {/* Camera preview — shown during active phases */}
         <video
           ref={videoRef}
-          className="hidden"
+          className={showCamera
+            ? "w-full h-40 sm:h-48 object-cover bg-black"
+            : "hidden"
+          }
+          style={{ transform: 'scaleX(-1)' }}
           playsInline
           muted
         />
@@ -167,13 +168,13 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
 
         {/* --- Camera / Calibrating Phase --- */}
         {(phase === 'camera' || phase === 'calibrating') && (
-          <div className="px-4 py-6 sm:px-6 sm:py-8 space-y-4 text-center overflow-y-auto">
-            <div className="mx-auto size-10 sm:size-12 animate-spin rounded-full border-4 border-muted border-t-primary" />
+          <div className="px-4 py-4 sm:px-6 sm:py-6 space-y-3 text-center overflow-y-auto">
+            <div className="mx-auto size-8 sm:size-10 animate-spin rounded-full border-4 border-muted border-t-primary" />
             <p className="text-xs sm:text-sm font-medium animate-pulse">
-              {phase === 'camera' ? 'Starting camera...' : 'Initialising face tracking — centre your face'}
+              {phase === 'camera' ? 'Starting camera...' : 'Look straight ahead — calibrating...'}
             </p>
             <p className="text-[10px] sm:text-xs text-muted-foreground">
-              Keep your face well-lit and look straight ahead.
+              Keep your face well-lit and centred in the preview.
             </p>
           </div>
         )}
@@ -182,7 +183,7 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
         {phase === 'tracking' && (
           <div className="px-4 py-3 sm:px-6 sm:py-4 space-y-3 sm:space-y-4 overflow-y-auto">
             {/* Dot tracking area */}
-            <div className="relative w-full h-32 sm:h-40 rounded-xl bg-muted/50 border overflow-hidden">
+            <div className="relative w-full h-24 sm:h-32 rounded-xl bg-muted/50 border overflow-hidden">
               <DotTrackerCanvas dotX={dotX} active />
               <p className="absolute bottom-1.5 sm:bottom-2 left-0 right-0 text-center text-[9px] sm:text-[10px] text-muted-foreground">
                 Follow the dot with your eyes
@@ -230,31 +231,31 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
             <div className="space-y-2 sm:space-y-3">
               <Card>
                 <CardContent className="p-2.5 sm:p-3 flex items-center justify-between">
-                  <span className="text-xs sm:text-sm text-muted-foreground">Tracking Error</span>
-                  <span className="font-bold text-sm">{result.rawMetrics.trackingError.toFixed(4)}</span>
+                  <span className="text-xs sm:text-sm text-muted-foreground">Pursuit Gain</span>
+                  <span className="font-bold text-sm">{result.rawMetrics.pursuitGain.toFixed(2)}</span>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-2.5 sm:p-3 flex items-center justify-between">
-                  <span className="text-xs sm:text-sm text-muted-foreground">Jitter Variance</span>
-                  <span className="font-bold text-sm">{result.rawMetrics.jitterVariance.toFixed(4)}</span>
+                  <span className="text-xs sm:text-sm text-muted-foreground">Saccade Rate</span>
+                  <span className="font-bold text-sm">{result.rawMetrics.saccadeRate.toFixed(1)}/s</span>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-2.5 sm:p-3 flex items-center justify-between">
-                  <span className="text-xs sm:text-sm text-muted-foreground">Correction Rate</span>
-                  <span className="font-bold text-sm">{result.rawMetrics.correctionRate.toFixed(2)}/s</span>
+                  <span className="text-xs sm:text-sm text-muted-foreground">Position Error</span>
+                  <span className="font-bold text-sm">{result.rawMetrics.positionError.toFixed(3)}</span>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-2.5 sm:p-3 flex items-center justify-between">
-                  <span className="text-xs sm:text-sm text-muted-foreground">Head Drift</span>
-                  <span className="font-bold text-sm">{result.rawMetrics.headDrift.toFixed(4)}</span>
+                  <span className="text-xs sm:text-sm text-muted-foreground">Gaze Stability</span>
+                  <span className="font-bold text-sm">{result.rawMetrics.gazeStability.toFixed(3)}</span>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-2.5 sm:p-3 flex items-center justify-between">
-                  <span className="text-xs sm:text-sm text-muted-foreground">Baseline Delta</span>
+                  <span className="text-xs sm:text-sm text-muted-foreground">Impairment Score</span>
                   <span className="font-bold text-sm">{result.score.focusDeltaPercent}%</span>
                 </CardContent>
               </Card>

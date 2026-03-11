@@ -58,10 +58,10 @@ export function updateBaselines(
         break;
       }
       case "focus": {
-        // Support both old (smoothPursuitScore) and new (focusDeltaPercent) metric keys
-        const observedFocus = check.rawMetrics.smoothPursuitScore ?? (100 - (check.baselineDelta ?? 0));
-        if (observedFocus && !userReportedImpaired) {
-          updated.baselineFocusScore = ema(updated.baselineFocusScore, observedFocus);
+        // Use pursuit gain as the focus baseline metric (higher = better, scale 0-1 → 0-100)
+        const pursuitGain = check.rawMetrics.pursuitGain;
+        if (pursuitGain != null && !userReportedImpaired) {
+          updated.baselineFocusScore = ema(updated.baselineFocusScore, pursuitGain * 100);
         }
         break;
       }
@@ -115,7 +115,7 @@ export function buildSessionHistoryEntry(
 export function loadUserProfile(): UserProfile | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem("sobr_user_profile");
+    const raw = localStorage.getItem("woozy_user_profile");
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -128,7 +128,7 @@ export function loadUserProfile(): UserProfile | null {
 export function saveUserProfile(profile: UserProfile): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem("sobr_user_profile", JSON.stringify(profile));
+    localStorage.setItem("woozy_user_profile", JSON.stringify(profile));
   } catch {
     // silent fail
   }

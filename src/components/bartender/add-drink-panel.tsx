@@ -9,13 +9,6 @@ interface AddDrinkPanelProps {
   sessionId: string;
 }
 
-const CATEGORY_EMOJI: Record<DrinkCategory, string> = {
-  Beer: "🍺",
-  Wine: "🍷",
-  Spirit: "🥃",
-  Other: "🍶",
-};
-
 export function AddDrinkPanel({ sessionId }: AddDrinkPanelProps) {
   const [adding, setAdding] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<DrinkCategory>("Beer");
@@ -49,13 +42,12 @@ export function AddDrinkPanel({ sessionId }: AddDrinkPanelProps) {
             key={cat}
             onClick={() => setActiveCategory(cat)}
             className={cn(
-              "flex items-center gap-1 whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer sm:gap-1.5 sm:px-3",
+              "whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer sm:px-3",
               activeCategory === cat
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <span>{CATEGORY_EMOJI[cat]}</span>
             {cat}
           </button>
         ))}
@@ -71,19 +63,20 @@ export function AddDrinkPanel({ sessionId }: AddDrinkPanelProps) {
               onClick={() => handleAdd(drink)}
               disabled={adding !== null}
               className={cn(
-                "group flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-all cursor-pointer",
+                "group flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition-all cursor-pointer",
                 "hover:border-primary hover:bg-accent",
                 "active:scale-95",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
                 isLoading && "border-primary bg-accent"
               )}
             >
-              <span className="text-2xl">{drink.emoji}</span>
-              <span className="text-xs font-medium leading-none">
+              <span className="text-xs font-medium leading-tight">
                 {drink.name}
               </span>
-              <span className="text-[10px] text-muted-foreground leading-tight">
-                {drink.description}
+              <span className="text-[10px] text-muted-foreground">
+                {drink.standard_drinks === 0
+                  ? "Non-alcoholic"
+                  : `${drink.standard_drinks} std drink${drink.standard_drinks !== 1 ? "s" : ""}`}
               </span>
               {isLoading && (
                 <div className="size-3 animate-spin rounded-full border-2 border-muted border-t-primary" />

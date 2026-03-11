@@ -1,11 +1,8 @@
 // ============================================================
-// useFocusTest — orchestrates the 10-second dot-tracking test.
+// useFocusTest — orchestrates the dot-tracking focus test.
 //
-// Manages:
-//  - camera stream lifecycle
-//  - dot stimulus timing
-//  - frame collection from FaceMesh
-//  - metric extraction + scoring
+// Flow: idle → camera → calibrating (3s) → tracking (10s) →
+//       analyzing → complete
 // ============================================================
 
 import { useRef, useState, useCallback } from "react";
@@ -26,6 +23,8 @@ const TEST_DURATION = 10;
 const DOT_FREQ = 0.65;
 /** Dot amplitude as fraction of [0,1] range. */
 const DOT_AMPLITUDE = 0.3;
+/** Calibration hold duration in seconds. */
+const CALIBRATION_SECS = 3;
 
 export type FocusTestPhase =
   | "idle"
@@ -99,12 +98,13 @@ export function useFocusTest() {
     const dotX = getDotX(elapsed);
     framesRef.current.push({
       timestamp: elapsed,
-      eyeX: data.pupilX,
-      eyeY: data.pupilY,
+      gazeX: data.gazeX,
+      gazeY: data.gazeY,
       dotX,
       dotY: DOT_Y,
       headYaw: data.headYaw,
       headPitch: data.headPitch,
+      confidence: data.confidence,
     });
   }, []);
 
@@ -142,12 +142,12 @@ export function useFocusTest() {
     rafRef.current = requestAnimationFrame(tick);
   }, []);
 
-  // ---- Calibration phase (2 s face-centering pause) ----
+  // ---- Calibration phase ----
   const startCalibration = useCallback(() => {
     setPhase("calibrating");
     setTimeout(() => {
       beginTracking();
-    }, 2000);
+    }, CALIBRATION_SECS * 1000);
   }, [beginTracking]);
 
   // ---- Save current result as baseline update ----

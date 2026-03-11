@@ -15,7 +15,7 @@ interface FriendMessage {
 
 export default function FriendPage() {
   const [messages, setMessages] = useState<FriendMessage[]>([]);
-  const [contactName, setContactName] = useState("SOBR");
+  const [contactName, setContactName] = useState("Woozy");
 
   // Track which alerts we've already shown so we don't duplicate
   const shownAlertsRef = useRef(new Set<string>());
@@ -87,7 +87,7 @@ export default function FriendPage() {
               addMessage({
                 id: `highrisk-${session.id}`,
                 type: "high-risk",
-                text: `⚠️ SOBR Alert: ${firstName} has reached a high estimated BAC (${formatBAC(bac)}). They may need your help getting home safely tonight. Please check in on them.`,
+                text: `⚠️ Woozy Alert: ${firstName} has reached a high estimated BAC (${formatBAC(bac)}). They may need your help getting home safely tonight. Please check in on them.`,
                 time: new Date(),
               });
             }
@@ -97,7 +97,7 @@ export default function FriendPage() {
               addMessage({
                 id: `ended-${session.id}`,
                 type: "session-ended",
-                text: `🍻 SOBR: ${firstName} just ended their drinking session. Please make sure they get home safely — a quick call or text goes a long way!`,
+                text: `🍻 Woozy: ${firstName} just ended their drinking session. Please make sure they get home safely — a quick call or text goes a long way!`,
                 time: new Date(session.ended_at!),
               });
             }

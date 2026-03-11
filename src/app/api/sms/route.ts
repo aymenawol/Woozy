@@ -29,12 +29,12 @@ export async function POST(req: NextRequest) {
     let message: string;
     if (type === "high-risk") {
       message =
-        `⚠️ SOBR Alert: Your friend ${firstName} has reached a high estimated BAC` +
+        `⚠️ Woozy Alert: Your friend ${firstName} has reached a high estimated BAC` +
         (bac ? ` (${bac})` : "") +
         `. They may need your help getting home safely tonight. Please check in on them.`;
     } else {
       message =
-        `🍻 SOBR: Your friend ${firstName} just ended their drinking session. ` +
+        `🍻 Woozy: Your friend ${firstName} just ended their drinking session. ` +
         `Please make sure they get home safely — a quick call or text goes a long way!`;
     }
 

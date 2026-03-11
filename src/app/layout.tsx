@@ -21,7 +21,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "SOBR — Know Your Limit",
+  title: "Woozy — Know Your Limit",
   description: "Real-time drink tracking, BAC monitoring, and an AI buddy that helps you get home safe.",
 };
 

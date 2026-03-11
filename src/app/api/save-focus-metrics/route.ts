@@ -7,10 +7,10 @@ export async function POST(request: Request) {
     // Validate expected shape — only accept derived metrics, never raw video
     const {
       sessionId,
-      trackingError,
-      jitterVariance,
-      correctionRate,
-      headDrift,
+      pursuitGain,
+      saccadeRate,
+      positionError,
+      gazeStability,
       focusDeltaPercent,
       impairmentContributionScore,
     } = body;
@@ -26,10 +26,10 @@ export async function POST(request: Request) {
     // In production, persist to Supabase or another store.
     console.log("[save-focus-metrics]", {
       sessionId,
-      trackingError,
-      jitterVariance,
-      correctionRate,
-      headDrift,
+      pursuitGain,
+      saccadeRate,
+      positionError,
+      gazeStability,
       focusDeltaPercent,
       impairmentContributionScore,
       savedAt: new Date().toISOString(),

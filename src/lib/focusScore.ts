@@ -1,152 +1,169 @@
 // ============================================================
-// Focus Score — normalise raw eye metrics against baseline,
-// produce focusDeltaPercent and impairmentContributionScore.
+// Focus Score — score raw clinical eye metrics and produce
+// a 0–100 impairment percentage.
+//
+// Scoring is based on known clinical thresholds for smooth
+// pursuit impairment rather than self-calibrated baselines,
+// so it works on the very first use.
 // ============================================================
 
 import { RawEyeMetrics } from "./eyeMetrics";
 
-/** Baseline statistics for each metric (mean + std). */
 export interface FocusBaseline {
-  trackingErrorMean: number;
-  trackingErrorStd: number;
-  jitterMean: number;
-  jitterStd: number;
-  correctionMean: number;
-  correctionStd: number;
-  headDriftMean: number;
-  headDriftStd: number;
+  pursuitGainMean: number;
+  pursuitGainStd: number;
+  saccadeRateMean: number;
+  saccadeRateStd: number;
+  positionErrorMean: number;
+  positionErrorStd: number;
+  gazeStabilityMean: number;
+  gazeStabilityStd: number;
 }
 
-/** Sane defaults for a first-time user (derived from typical sober tracking). */
+/**
+ * Population-derived defaults for a sober user.
+ * Based on smooth pursuit research literature:
+ *  - Pursuit gain ~0.90–0.95 (sober)
+ *  - Saccade rate <1 per second
+ *  - Position error ~0.03–0.06 (normalised)
+ *  - Gaze velocity variance ~0.05–0.15
+ */
 export const DEFAULT_FOCUS_BASELINE: FocusBaseline = {
-  trackingErrorMean: 0.06,
-  trackingErrorStd: 0.02,
-  jitterMean: 0.002,
-  jitterStd: 0.001,
-  correctionMean: 2.0,
-  correctionStd: 0.8,
-  headDriftMean: 0.001,
-  headDriftStd: 0.0005,
+  pursuitGainMean: 0.92,
+  pursuitGainStd: 0.06,
+  saccadeRateMean: 0.8,
+  saccadeRateStd: 0.4,
+  positionErrorMean: 0.05,
+  positionErrorStd: 0.02,
+  gazeStabilityMean: 0.1,
+  gazeStabilityStd: 0.05,
 };
-
-/**
- * Compute z-score clamped to [0, 4].
- * Positive z means worse than baseline.
- */
-function zScore(current: number, mean: number, std: number): number {
-  if (std <= 0) return 0;
-  const z = (current - mean) / std;
-  return Math.max(0, Math.min(z, 4));
-}
-
-/**
- * Map a 0–4 z-score to 0–100 via sigmoid-like scaling.
- */
-function normalise(z: number): number {
-  return Math.min(100, (z / 4) * 100);
-}
 
 export interface FocusScoreResult {
   focusDeltaPercent: number;
   impairmentContributionScore: number;
-  normalizedTrackingError: number;
-  normalizedJitter: number;
-  normalizedCorrections: number;
-  normalizedHeadDrift: number;
+  /** Individual metric scores (0–100, higher = worse). */
+  pursuiGainScore: number;
+  saccadeScore: number;
+  positionErrorScore: number;
+  stabilityScore: number;
 }
 
 /**
- * Compute the weighted focus-delta and impairment contribution.
+ * Score pursuit gain: map from 0–1 scale to 0–100 impairment.
+ * Perfect gain (≥0.95) → 0;  severe impairment (≤0.50) → 100.
+ */
+function scorePursuitGain(gain: number): number {
+  // Clamp to avoid weird values
+  const g = Math.max(0, Math.min(1.2, gain));
+  if (g >= 0.95) return 0;
+  if (g <= 0.50) return 100;
+  // Linear interpolation: 0.95→0, 0.50→100
+  return Math.round(((0.95 - g) / 0.45) * 100);
+}
+
+/**
+ * Score saccade rate: 0/s → 0,  ≥6/s → 100.
+ */
+function scoreSaccadeRate(rate: number): number {
+  if (rate <= 0) return 0;
+  if (rate >= 6) return 100;
+  return Math.round((rate / 6) * 100);
+}
+
+/**
+ * Score position error: 0 → 0,  ≥0.20 → 100.
+ */
+function scorePositionError(err: number): number {
+  if (err <= 0) return 0;
+  if (err >= 0.20) return 100;
+  return Math.round((err / 0.20) * 100);
+}
+
+/**
+ * Score gaze stability (velocity variance): 0 → 0,  ≥1.0 → 100.
+ */
+function scoreStability(variance: number): number {
+  if (variance <= 0) return 0;
+  if (variance >= 1.0) return 100;
+  return Math.round((variance / 1.0) * 100);
+}
+
+/**
+ * Compute weighted impairment score from raw metrics.
  *
- * Weights (from spec):
- *   trackingError  0.40
- *   jitter         0.25
- *   corrections    0.20
- *   headDrift      0.15
+ * Weights (clinically motivated):
+ *   pursuitGain     0.40  — the gold standard for impairment
+ *   saccadeRate     0.25  — catch-up saccades indicate lag
+ *   positionError   0.20  — overall accuracy
+ *   gazeStability   0.15  — involuntary oscillation / nystagmus
  */
 export function computeFocusScore(
   metrics: RawEyeMetrics,
-  baseline: FocusBaseline
+  _baseline?: FocusBaseline,
 ): FocusScoreResult {
-  const zTracking = zScore(metrics.trackingError, baseline.trackingErrorMean, baseline.trackingErrorStd);
-  const zJitter = zScore(metrics.jitterVariance, baseline.jitterMean, baseline.jitterStd);
-  const zCorrections = zScore(metrics.correctionRate, baseline.correctionMean, baseline.correctionStd);
-  const zHeadDrift = zScore(metrics.headDrift, baseline.headDriftMean, baseline.headDriftStd);
-
-  const nTracking = normalise(zTracking);
-  const nJitter = normalise(zJitter);
-  const nCorrections = normalise(zCorrections);
-  const nHeadDrift = normalise(zHeadDrift);
+  const pg = scorePursuitGain(metrics.pursuitGain);
+  const sr = scoreSaccadeRate(metrics.saccadeRate);
+  const pe = scorePositionError(metrics.positionError);
+  const gs = scoreStability(metrics.gazeStability);
 
   const focusDeltaPercent = Math.round(
-    0.40 * nTracking +
-    0.25 * nJitter +
-    0.20 * nCorrections +
-    0.15 * nHeadDrift
+    0.40 * pg + 0.25 * sr + 0.20 * pe + 0.15 * gs,
   );
-
   const clamped = Math.max(0, Math.min(100, focusDeltaPercent));
 
   return {
     focusDeltaPercent: clamped,
     impairmentContributionScore: clamped / 100,
-    normalizedTrackingError: Math.round(nTracking),
-    normalizedJitter: Math.round(nJitter),
-    normalizedCorrections: Math.round(nCorrections),
-    normalizedHeadDrift: Math.round(nHeadDrift),
+    pursuiGainScore: pg,
+    saccadeScore: sr,
+    positionErrorScore: pe,
+    stabilityScore: gs,
   };
 }
 
+/** EMA helper */
+function ema(cur: number, obs: number, alpha: number): number {
+  return alpha * obs + (1 - alpha) * cur;
+}
+function emaStd(curStd: number, curMean: number, obs: number, alpha: number): number {
+  return Math.max(0.0001, ema(curStd, Math.abs(obs - curMean), alpha));
+}
+
 /**
- * Update a baseline using exponential moving average.
- * Call this after a sober calibration run.
+ * Update baseline using an EMA from a sober calibration run.
  */
 export function updateFocusBaseline(
   current: FocusBaseline,
   metrics: RawEyeMetrics,
-  alpha: number = 0.2
+  alpha: number = 0.2,
 ): FocusBaseline {
-  function ema(cur: number, obs: number) {
-    return alpha * obs + (1 - alpha) * cur;
-  }
-  // For std, we approximate by EMA'ing the absolute deviation
-  function emaStd(curStd: number, curMean: number, obs: number) {
-    const dev = Math.abs(obs - curMean);
-    return Math.max(0.0001, ema(curStd, dev));
-  }
-
   return {
-    trackingErrorMean: ema(current.trackingErrorMean, metrics.trackingError),
-    trackingErrorStd: emaStd(current.trackingErrorStd, current.trackingErrorMean, metrics.trackingError),
-    jitterMean: ema(current.jitterMean, metrics.jitterVariance),
-    jitterStd: emaStd(current.jitterStd, current.jitterMean, metrics.jitterVariance),
-    correctionMean: ema(current.correctionMean, metrics.correctionRate),
-    correctionStd: emaStd(current.correctionStd, current.correctionMean, metrics.correctionRate),
-    headDriftMean: ema(current.headDriftMean, metrics.headDrift),
-    headDriftStd: emaStd(current.headDriftStd, current.headDriftMean, metrics.headDrift),
+    pursuitGainMean: ema(current.pursuitGainMean, metrics.pursuitGain, alpha),
+    pursuitGainStd: emaStd(current.pursuitGainStd, current.pursuitGainMean, metrics.pursuitGain, alpha),
+    saccadeRateMean: ema(current.saccadeRateMean, metrics.saccadeRate, alpha),
+    saccadeRateStd: emaStd(current.saccadeRateStd, current.saccadeRateMean, metrics.saccadeRate, alpha),
+    positionErrorMean: ema(current.positionErrorMean, metrics.positionError, alpha),
+    positionErrorStd: emaStd(current.positionErrorStd, current.positionErrorMean, metrics.positionError, alpha),
+    gazeStabilityMean: ema(current.gazeStabilityMean, metrics.gazeStability, alpha),
+    gazeStabilityStd: emaStd(current.gazeStabilityStd, current.gazeStabilityMean, metrics.gazeStability, alpha),
   };
 }
 
-/**
- * Load focus baseline from localStorage.
- */
 export function loadFocusBaseline(): FocusBaseline {
   if (typeof window === "undefined") return DEFAULT_FOCUS_BASELINE;
   try {
-    const raw = localStorage.getItem("sobr_focus_baseline");
+    const raw = localStorage.getItem("woozy_focus_baseline");
     return raw ? JSON.parse(raw) : DEFAULT_FOCUS_BASELINE;
   } catch {
     return DEFAULT_FOCUS_BASELINE;
   }
 }
 
-/**
- * Save focus baseline to localStorage.
- */
 export function saveFocusBaseline(baseline: FocusBaseline): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem("sobr_focus_baseline", JSON.stringify(baseline));
+    localStorage.setItem("woozy_focus_baseline", JSON.stringify(baseline));
   } catch {
     // silent
   }
