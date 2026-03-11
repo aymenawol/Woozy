@@ -1,9 +1,8 @@
 "use client";
 
 import { ActiveSession } from "@/lib/types";
-import { estimateBAC, bacRiskLevel, formatBAC } from "@/lib/bac";
+import { estimateBAC, formatBAC } from "@/lib/bac";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
@@ -43,7 +42,7 @@ export function CustomerSidebar({
               session.customer.weight_lbs,
               session.customer.gender
             );
-            const risk = bacRiskLevel(bac);
+            const overLimit = bac >= 0.08;
             const isSelected = selectedId === session.id;
 
             return (
@@ -52,20 +51,12 @@ export function CustomerSidebar({
                 onClick={() => onSelect(session.id)}
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-accent cursor-pointer",
-                  isSelected && "bg-accent",
-                  risk === "danger" &&
-                    "border border-destructive/50 bg-destructive/5"
+                  isSelected && "bg-accent"
                 )}
               >
                 <Avatar className="size-8">
                   <AvatarFallback
-                    className={cn(
-                      "text-xs font-medium",
-                      risk === "danger" &&
-                        "bg-destructive text-white",
-                      risk === "caution" &&
-                        "bg-yellow-500 text-white"
-                    )}
+                    className="text-xs font-medium"
                   >
                     {session.customer.name
                       .split(" ")
@@ -80,26 +71,15 @@ export function CustomerSidebar({
                   <span className="truncate font-medium">
                     {session.customer.name}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className={cn(
+                    "text-xs text-muted-foreground",
+                    overLimit && "text-destructive font-medium"
+                  )}>
                     {session.drinks.length} drink
                     {session.drinks.length !== 1 && "s"} ·{" "}
                     {formatBAC(bac)}
                   </span>
                 </div>
-
-                {risk === "danger" && (
-                  <Badge variant="destructive" className="shrink-0 text-[10px]">
-                    HIGH
-                  </Badge>
-                )}
-                {risk === "caution" && (
-                  <Badge
-                    variant="outline"
-                    className="shrink-0 border-yellow-500 text-[10px] text-yellow-600"
-                  >
-                    WARN
-                  </Badge>
-                )}
               </button>
             );
           })}

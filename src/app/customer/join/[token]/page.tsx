@@ -30,7 +30,7 @@ export default function CustomerJoinPage() {
       } = await supabase.auth.getSession();
       if (!authSession) {
         const returnUrl = encodeURIComponent(`/customer/join/${token}`);
-        router.replace(`/sign-up?redirect=${returnUrl}`);
+        window.location.href = `/sign-up?redirect=${returnUrl}`;
         return;
       }
 
@@ -94,7 +94,7 @@ export default function CustomerJoinPage() {
         .update({ customer_id: customerId })
         .eq("id", (sess as Session).id);
 
-      router.replace(`/customer?joined=${(sess as Session).id}`);
+      window.location.href = `/customer?joined=${(sess as Session).id}`;
     })();
   }, [token, router]);
 

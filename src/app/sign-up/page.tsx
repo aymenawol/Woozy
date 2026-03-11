@@ -25,33 +25,34 @@ function SignUpPageContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    // Try to handle OAuth redirect + get current session
-    (async () => {
-      try {
-        // Attempt to parse session from URL if present (OAuth redirect)
-        // @ts-ignore
-        if (typeof supabase.auth.getSessionFromUrl === 'function') {
-          // @ts-ignore
-          await supabase.auth.getSessionFromUrl();
-        }
-
-        const { data } = await supabase.auth.getSession();
-        if (data?.session) {
-          setSession(data.session);
-          // Use redirect from URL first, then from sessionStorage (in case OAuth callback dropped it)
-          let redirect = searchParams.get('redirect');
-          if (!redirect || !redirect.startsWith('/')) {
-            try {
-              redirect = sessionStorage.getItem('auth_redirect');
-              if (redirect) sessionStorage.removeItem('auth_redirect');
-            } catch (_) {}
-          }
-          router.push(redirect && redirect.startsWith('/') ? redirect : '/customer');
-        }
-      } catch (err) {
-        console.error('Auth error:', err);
+    function getRedirect() {
+      let redirect = searchParams.get('redirect');
+      if (!redirect || !redirect.startsWith('/')) {
+        try {
+          redirect = sessionStorage.getItem('auth_redirect');
+          if (redirect) sessionStorage.removeItem('auth_redirect');
+        } catch (_) {}
       }
-    })();
+      return redirect && redirect.startsWith('/') ? redirect : '/customer';
+    }
+
+    // Listen for OAuth callback (fires when Supabase processes tokens from URL hash)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, authSession) => {
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && authSession) {
+        setSession(authSession);
+        window.location.href = getRedirect();
+      }
+    });
+
+    // Also check if already signed in
+    supabase.auth.getSession().then(({ data }) => {
+      if (data?.session) {
+        setSession(data.session);
+        window.location.href = getRedirect();
+      }
+    });
+
+    return () => { subscription.unsubscribe(); };
   }, [router, searchParams]);
 
   const handleSignIn = async () => {

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/lib/supabase';
-import { estimateBAC, bacRiskLevel, formatBAC } from '@/lib/bac';
+import { estimateBAC, formatBAC } from '@/lib/bac';
 import { estimateBACRange, formatBACRange } from '@/lib/bac-range';
 import { computeImpairmentRisk } from '@/lib/impairment-risk';
 import { predictTimeToHighRisk, formatPrediction } from '@/lib/predictive';
@@ -16,20 +16,14 @@ import { ImpairmentResult, RiskAssessment, DEFAULT_USER_PROFILE } from '@/lib/im
 import { Customer, Session, Drink } from '@/lib/types';
 import { DRINK_MENU } from '@/lib/menu';
 import {
-  Wine, Activity, User, LogOut, AlertTriangle, CheckCircle2, Info,
+  Wine, Activity, User, LogOut, AlertTriangle,
 } from 'lucide-react';
 import { ImpairmentCheckModal } from '@/components/customer/impairment-check-modal';
 import { ResultsDashboard } from '@/components/customer/results-dashboard';
 import { FloatingChatbot } from '@/components/customer/floating-chatbot';
 import { FocusCheck } from '@/components/customer/focus-check';
 
-// ---- Risk badge helper (UI only) ----
-function getRiskDisplay(bac: number) {
-  const risk = bacRiskLevel(bac);
-  if (risk === 'safe') return { level: 'Safe', color: 'text-emerald-500', bgColor: 'bg-emerald-500/10', icon: <CheckCircle2 className="size-5 text-emerald-500" /> };
-  if (risk === 'caution') return { level: 'Caution', color: 'text-amber-500', bgColor: 'bg-amber-500/10', icon: <Info className="size-5 text-amber-500" /> };
-  return { level: 'High Risk', color: 'text-rose-500', bgColor: 'bg-rose-500/10', icon: <AlertTriangle className="size-5 text-rose-500" /> };
-}
+
 
 function CustomerPageContent() {
   const router = useRouter();
@@ -66,8 +60,8 @@ function CustomerPageContent() {
   const bacRange = customer && drinks.length > 0
     ? estimateBACRange(drinks, customer.weight_lbs, customer.gender)
     : { estimatedBACLow: 0, estimatedBACHigh: 0, midpoint: 0 };
-  const riskInfo = getRiskDisplay(bac);
-  const bacPercent = Math.min((bac / 0.15) * 100, 100);
+  const overLimit = bac >= 0.08;
+  const bacPercent = Math.min((bac / 0.08) * 100, 100);
   const hoursElapsed = session
     ? (Date.now() - new Date(session.started_at).getTime()) / (1000 * 60 * 60)
     : 0;
@@ -595,8 +589,9 @@ function CustomerPageContent() {
   // ACTIVE SESSION SCREEN
   // ============================================================
   return (
-    <main className="flex min-h-[100dvh] w-full flex-col bg-muted/30 pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]">
-      <div className="mx-auto w-full max-w-md flex-1 space-y-3 p-3 pt-[max(0.75rem,env(safe-area-inset-top,12px))] sm:space-y-6 sm:p-4 sm:pt-8">
+    <div className="flex h-[100dvh] w-full flex-col bg-muted/30">
+    <main className="flex-1 overflow-y-auto">
+      <div className="mx-auto w-full max-w-md space-y-3 p-3 pt-[max(0.75rem,env(safe-area-inset-top,12px))] pb-2 sm:space-y-6 sm:p-4 sm:pt-8">
 
         {/* Header */}
         <header className="flex items-center justify-between px-1 sm:px-2">
@@ -617,15 +612,11 @@ function CustomerPageContent() {
         {activeTab === 'home' && (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* BAC Card */}
-            <Card className="overflow-hidden border-none shadow-md">
-              <div className={`flex items-center gap-2 px-4 py-3 sm:px-6 sm:py-4 ${riskInfo.bgColor}`}>
-                {riskInfo.icon}
-                <span className={`font-semibold text-sm sm:text-base ${riskInfo.color}`}>{riskInfo.level}</span>
-              </div>
+            <Card className={`overflow-hidden shadow-md ${overLimit ? 'border-destructive' : 'border-none'}`}>
               <CardContent className="p-4 sm:p-6">
                 <div className="flex flex-col items-center justify-center space-y-2">
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider sm:text-sm">Estimated BAC Range</span>
-                  <span className="text-2xl font-black tracking-tighter tabular-nums sm:text-4xl">
+                  <span className={`text-2xl font-black tracking-tighter tabular-nums sm:text-4xl ${overLimit ? 'text-destructive' : ''}`}>
                     {formatBACRange(bacRange)}
                   </span>
                   <span className="text-xs text-muted-foreground">Range accounts for absorption variance</span>
@@ -633,18 +624,12 @@ function CustomerPageContent() {
 
                 <div className="mt-5 sm:mt-8 space-y-2">
                   <div className="flex justify-between text-xs font-medium text-muted-foreground">
-                    <span>0.00</span>
-                    <span>0.08 (Limit)</span>
-                    <span>0.15+</span>
+                    <span>0.00%</span>
+                    <span>0.08% (Legal Limit)</span>
                   </div>
                   <Progress
                     value={bacPercent}
-                    className={
-                      `h-3 ${
-                        bac < 0.05 ? '[&>[data-slot=indicator]]:bg-emerald-500' :
-                        bac < 0.08 ? '[&>[data-slot=indicator]]:bg-amber-500' : '[&>[data-slot=indicator]]:bg-rose-500'
-                      }`
-                    }
+                    className={`h-3 ${overLimit ? '[&>[data-slot=indicator]]:bg-destructive' : ''}`}
                   />
                 </div>
               </CardContent>
@@ -769,6 +754,7 @@ function CustomerPageContent() {
           </div>
         )}
       </div>
+    </main>
 
       {/* Impairment Check Modal */}
       {showImpairmentModal && (
@@ -818,7 +804,7 @@ function CustomerPageContent() {
       )}
 
       {/* Bottom Navigation Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/80 backdrop-blur-lg" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <nav className="shrink-0 border-t bg-background" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="mx-auto flex max-w-md items-center justify-around p-1.5 sm:p-2">
           <button
             onClick={() => setActiveTab('home')}
@@ -842,8 +828,8 @@ function CustomerPageContent() {
             <span className="text-[10px] font-medium">Profile</span>
           </button>
         </div>
-      </div>
-    </main>
+      </nav>
+    </div>
   );
 }
 

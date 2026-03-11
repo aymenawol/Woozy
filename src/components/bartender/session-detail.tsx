@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { ActiveSession } from "@/lib/types";
-import { estimateBAC, bacRiskLevel, formatBAC } from "@/lib/bac";
+import { estimateBAC, formatBAC } from "@/lib/bac";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
@@ -27,7 +27,6 @@ function formatTime(iso: string) {
 export function SessionDetail({ session, onEndSession }: SessionDetailProps) {
   const { customer, drinks } = session;
   const bac = estimateBAC(drinks, customer.weight_lbs, customer.gender);
-  const risk = bacRiskLevel(bac);
 
   // Sort drinks newest first
   const sortedDrinks = [...drinks].sort(
@@ -35,8 +34,9 @@ export function SessionDetail({ session, onEndSession }: SessionDetailProps) {
       new Date(b.ordered_at).getTime() - new Date(a.ordered_at).getTime()
   );
 
-  // BAC as percentage of 0.15 for the progress bar (cap at 100)
-  const bacPercent = Math.min((bac / 0.15) * 100, 100);
+  // BAC as percentage of 0.08 for the progress bar (cap at 100)
+  const bacPercent = Math.min((bac / 0.08) * 100, 100);
+  const overLimit = bac >= 0.08;
 
   // Session duration
   const durationStr = useMemo(() => {
@@ -76,8 +76,7 @@ export function SessionDetail({ session, onEndSession }: SessionDetailProps) {
       {/* BAC — primary stat */}
       <Card
         className={cn(
-          risk === "danger" && "border-destructive",
-          risk === "caution" && "border-yellow-500"
+          overLimit && "border-destructive"
         )}
       >
         <CardContent className="py-4 sm:py-5">
@@ -89,8 +88,7 @@ export function SessionDetail({ session, onEndSession }: SessionDetailProps) {
               <span
                 className={cn(
                   "text-3xl font-bold tabular-nums sm:text-4xl",
-                  risk === "danger" && "text-destructive",
-                  risk === "caution" && "text-yellow-600"
+                  overLimit && "text-destructive"
                 )}
               >
                 {formatBAC(bac)}
@@ -120,13 +118,13 @@ export function SessionDetail({ session, onEndSession }: SessionDetailProps) {
             value={bacPercent}
             className={cn(
               "mt-3 h-2",
-              risk === "danger" && "[&>[data-slot=indicator]]:bg-destructive",
-              risk === "caution" && "[&>[data-slot=indicator]]:bg-yellow-500"
+              overLimit && "[&>[data-slot=indicator]]:bg-destructive"
             )}
           />
-          <p className="mt-1 text-xs text-muted-foreground">
-            0.08% legal limit
-          </p>
+          <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+            <span>0.00%</span>
+            <span>0.08% (Legal Limit)</span>
+          </div>
         </CardContent>
       </Card>
 
