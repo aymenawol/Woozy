@@ -51,42 +51,44 @@ export interface FocusScoreResult {
 
 /**
  * Score pursuit gain: map from 0–1 scale to 0–100 impairment.
- * Perfect gain (≥0.95) → 0;  severe impairment (≤0.50) → 100.
+ * Perfect gain (≥0.80) → 0;  severe impairment (≤0.20) → 100.
+ * Lenient: phone-based tracking has much more noise than lab equipment.
  */
 function scorePursuitGain(gain: number): number {
-  // Clamp to avoid weird values
   const g = Math.max(0, Math.min(1.2, gain));
-  if (g >= 0.95) return 0;
-  if (g <= 0.50) return 100;
-  // Linear interpolation: 0.95→0, 0.50→100
-  return Math.round(((0.95 - g) / 0.45) * 100);
+  if (g >= 0.80) return 0;
+  if (g <= 0.20) return 100;
+  return Math.round(((0.80 - g) / 0.60) * 100);
 }
 
 /**
- * Score saccade rate: 0/s → 0,  ≥6/s → 100.
+ * Score saccade rate: ≤1/s → 0,  ≥12/s → 100.
+ * Lenient: casual phone use produces many micro-saccades.
  */
 function scoreSaccadeRate(rate: number): number {
-  if (rate <= 0) return 0;
-  if (rate >= 6) return 100;
-  return Math.round((rate / 6) * 100);
+  if (rate <= 1) return 0;
+  if (rate >= 12) return 100;
+  return Math.round(((rate - 1) / 11) * 100);
 }
 
 /**
- * Score position error: 0 → 0,  ≥0.20 → 100.
+ * Score position error: ≤0.05 → 0,  ≥0.40 → 100.
+ * Lenient: webcam gaze has inherent position noise.
  */
 function scorePositionError(err: number): number {
-  if (err <= 0) return 0;
-  if (err >= 0.20) return 100;
-  return Math.round((err / 0.20) * 100);
+  if (err <= 0.05) return 0;
+  if (err >= 0.40) return 100;
+  return Math.round(((err - 0.05) / 0.35) * 100);
 }
 
 /**
- * Score gaze stability (velocity variance): 0 → 0,  ≥1.0 → 100.
+ * Score gaze stability (velocity variance): ≤0.15 → 0,  ≥2.0 → 100.
+ * Lenient: phone screen tracking has significant jitter.
  */
 function scoreStability(variance: number): number {
-  if (variance <= 0) return 0;
-  if (variance >= 1.0) return 100;
-  return Math.round((variance / 1.0) * 100);
+  if (variance <= 0.15) return 0;
+  if (variance >= 2.0) return 100;
+  return Math.round(((variance - 0.15) / 1.85) * 100);
 }
 
 /**

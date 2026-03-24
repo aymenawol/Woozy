@@ -20,6 +20,12 @@ export interface FaceLandmarkData {
   headPitch: number;
   /** Detection confidence proxy (0–1). */
   confidence: number;
+  /** Left eye contour points (normalised 0–1 coords). */
+  leftEyeContour: { x: number; y: number }[];
+  /** Right eye contour points (normalised 0–1 coords). */
+  rightEyeContour: { x: number; y: number }[];
+  /** Distance between outer eye corners as fraction of frame width (for distance guidance). */
+  eyeDistance: number;
 }
 
 // Iris landmark indices (refineLandmarks: true)
@@ -40,6 +46,10 @@ const RIGHT_EYE_BOTTOM = 374;
 
 // Head pose reference
 const NOSE_TIP = 1;
+
+// Eye contour landmark indices (for drawing outlines)
+const LEFT_EYE_CONTOUR = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246];
+const RIGHT_EYE_CONTOUR = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398];
 
 function mean(values: number[]): number {
   return values.reduce((s, v) => s + v, 0) / values.length;
@@ -109,7 +119,14 @@ function extractData(results: any): FaceLandmarkData | null {
   const zSpread = Math.abs(lm[LEFT_IRIS[0]].z - lm[RIGHT_IRIS[0]].z);
   const confidence = Math.min(1, zSpread * 20 + 0.5);
 
-  return { gazeX, gazeY, headYaw, headPitch, confidence };
+  // ── Eye contour points for overlay drawing ──
+  const leftEyeContour = LEFT_EYE_CONTOUR.map((i) => ({ x: lm[i].x, y: lm[i].y }));
+  const rightEyeContour = RIGHT_EYE_CONTOUR.map((i) => ({ x: lm[i].x, y: lm[i].y }));
+
+  // ── Inter-eye distance (fraction of frame width, for distance guidance) ──
+  const eyeDistance = Math.abs(lm[RIGHT_EYE_OUTER].x - lm[LEFT_EYE_OUTER].x);
+
+  return { gazeX, gazeY, headYaw, headPitch, confidence, leftEyeContour, rightEyeContour, eyeDistance };
 }
 
 interface UseFaceMeshOptions {

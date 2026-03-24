@@ -1,29 +1,51 @@
 'use client';
 
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { ImpairmentResult } from '@/lib/impairment-types';
-import { Eye, Camera, X, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { useFaceMesh } from '@/hooks/useFaceMesh';
+import { Eye, Camera, X, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import { useFaceMesh, FaceLandmarkData } from '@/hooks/useFaceMesh';
 import { useFocusTest, getDotX, DOT_Y } from '@/hooks/useFocusTest';
 import { DotTrackerCanvas } from './dot-tracker-canvas';
 
 // ============================================================
 // Eye Tracking Focus Check  (MediaPipe FaceMesh)
 //
-// Shows the camera feed so the user knows they're being scanned.
-// Uses relative iris gaze for accurate tracking measurement.
+// Features:
+//  - Blue eye outlines overlaid on camera feed
+//  - Distance guidance ("move closer" / "move further")
+//  - AI-powered impairment determination (GPT)
 // ============================================================
+
+// Ideal inter-eye distance as fraction of frame width
+// (~0.20–0.30 means face fills roughly 1/3 of frame)
+const IDEAL_EYE_DIST_MIN = 0.18;
+const IDEAL_EYE_DIST_MAX = 0.35;
 
 interface FocusCheckProps {
   onResult: (result: ImpairmentResult) => void;
   onCancel: () => void;
+  /** Current BAC estimate (passed so we can give AI context). */
+  bacEstimate?: number;
 }
 
-export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
+interface AIVerdict {
+  verdict: 'sober' | 'slightly_impaired' | 'impaired';
+  confidence: number;
+  explanation: string;
+}
+
+export function FocusCheck({ onResult, onCancel, bacEstimate = 0 }: FocusCheckProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Latest face data for drawing overlays + distance guidance
+  const latestFaceRef = useRef<FaceLandmarkData | null>(null);
+  const [distanceHint, setDistanceHint] = useState<'ok' | 'closer' | 'further'>('ok');
+  const [aiVerdict, setAiVerdict] = useState<AIVerdict | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const {
     phase,
@@ -37,10 +59,25 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
     TEST_DURATION,
   } = useFocusTest();
 
-  // Wire FaceMesh → recordFrame
+  // Combined face data handler — records frame AND stores latest landmarks for overlay
+  const handleFaceData = useCallback((data: FaceLandmarkData) => {
+    latestFaceRef.current = data;
+    recordFrame(data);
+
+    // Distance guidance based on inter-eye distance
+    if (data.eyeDistance < IDEAL_EYE_DIST_MIN) {
+      setDistanceHint('closer');
+    } else if (data.eyeDistance > IDEAL_EYE_DIST_MAX) {
+      setDistanceHint('further');
+    } else {
+      setDistanceHint('ok');
+    }
+  }, [recordFrame]);
+
+  // Wire FaceMesh → handleFaceData
   const { ready: meshReady, error: meshError, startProcessing, stopProcessing } = useFaceMesh({
     videoRef,
-    onResults: recordFrame,
+    onResults: handleFaceData,
     enabled: phase === 'camera' || phase === 'calibrating' || phase === 'tracking',
   });
 
@@ -59,8 +96,77 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
     }
   }, [meshReady, phase, startProcessing, stopProcessing]);
 
+  // ---- Draw blue eye outlines on canvas overlay ----
+  useEffect(() => {
+    const showCamera = phase === 'camera' || phase === 'calibrating' || phase === 'tracking';
+    if (!showCamera) return;
+
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    if (!canvas || !video) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let raf: number;
+
+    function draw() {
+      const c = canvasRef.current;
+      const v = videoRef.current;
+      if (!c || !v) return;
+
+      // Match canvas size to video display size
+      const rect = c.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      if (c.width !== rect.width * dpr || c.height !== rect.height * dpr) {
+        c.width = rect.width * dpr;
+        c.height = rect.height * dpr;
+        ctx!.scale(dpr, dpr);
+      }
+
+      const w = rect.width;
+      const h = rect.height;
+      ctx!.clearRect(0, 0, w, h);
+
+      const face = latestFaceRef.current;
+      if (face && face.leftEyeContour.length > 0) {
+        drawEyeOutline(ctx!, face.leftEyeContour, w, h);
+        drawEyeOutline(ctx!, face.rightEyeContour, w, h);
+      }
+
+      raf = requestAnimationFrame(draw);
+    }
+
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [phase]);
+
   // Clean up on unmount
   useEffect(() => () => { cleanup(); }, [cleanup]);
+
+  // ---- When test completes, ask AI for verdict ----
+  useEffect(() => {
+    if (phase !== 'complete' || !result || aiVerdict || aiLoading) return;
+
+    setAiLoading(true);
+    fetch('/api/eye-analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rawMetrics: result.rawMetrics,
+        score: result.score.focusDeltaPercent,
+        bacEstimate,
+      }),
+    })
+      .then((r) => r.json())
+      .then((data: AIVerdict) => setAiVerdict(data))
+      .catch(() => setAiVerdict({
+        verdict: result.score.focusDeltaPercent >= 45 ? 'impaired' : result.score.focusDeltaPercent >= 25 ? 'slightly_impaired' : 'sober',
+        confidence: 0.5,
+        explanation: 'AI analysis unavailable. Using metric-based assessment.',
+      }))
+      .finally(() => setAiLoading(false));
+  }, [phase, result, bacEstimate, aiVerdict, aiLoading]);
 
   // ---- Handlers ----
   const handleStart = useCallback(async () => {
@@ -77,6 +183,14 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
     if (!result) return;
     cleanup();
 
+    // Use AI verdict to adjust the impairment score
+    let adjustedScore = result.score.focusDeltaPercent;
+    if (aiVerdict) {
+      if (aiVerdict.verdict === 'sober') adjustedScore = Math.min(adjustedScore, 15);
+      else if (aiVerdict.verdict === 'slightly_impaired') adjustedScore = Math.max(20, Math.min(adjustedScore, 45));
+      // 'impaired' leaves the score as-is or higher
+    }
+
     const impairmentResult: ImpairmentResult = {
       type: 'focus',
       rawMetrics: {
@@ -85,8 +199,8 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
         positionError: result.rawMetrics.positionError,
         gazeStability: result.rawMetrics.gazeStability,
       },
-      baselineDelta: result.score.focusDeltaPercent,
-      impairmentContributionScore: result.score.focusDeltaPercent,
+      baselineDelta: adjustedScore,
+      impairmentContributionScore: adjustedScore,
       completedAt: new Date().toISOString(),
     };
     onResult(impairmentResult);
@@ -97,9 +211,12 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
   const dotX = getDotX(elapsed);
 
   const combinedError = errorMsg || meshError;
-
-  // Whether to show the camera preview (during active phases)
   const showCamera = phase === 'camera' || phase === 'calibrating' || phase === 'tracking';
+
+  const verdictColor = aiVerdict?.verdict === 'sober' ? 'text-emerald-500' :
+    aiVerdict?.verdict === 'slightly_impaired' ? 'text-amber-500' : 'text-destructive';
+  const verdictLabel = aiVerdict?.verdict === 'sober' ? 'No Impairment Detected' :
+    aiVerdict?.verdict === 'slightly_impaired' ? 'Mild Signs Detected' : 'Possible Impairment';
 
   return (
     <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm">
@@ -112,7 +229,7 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
             </div>
             <div>
               <h2 className="font-bold text-sm sm:text-base">Focus Check</h2>
-              <p className="text-[10px] sm:text-xs text-muted-foreground">Eye tracking analysis</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">AI-powered eye tracking</p>
             </div>
           </div>
           <button onClick={handleCancel} className="p-1.5 rounded-full hover:bg-muted">
@@ -120,17 +237,38 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
           </button>
         </div>
 
-        {/* Camera preview — shown during active phases */}
-        <video
-          ref={videoRef}
-          className={showCamera
-            ? "w-full h-40 sm:h-48 object-cover bg-black"
-            : "hidden"
-          }
-          style={{ transform: 'scaleX(-1)' }}
-          playsInline
-          muted
-        />
+        {/* Camera preview with blue eye outline overlay */}
+        <div className={showCamera ? "relative w-full" : "hidden"}>
+          <video
+            ref={videoRef}
+            className="w-full h-48 sm:h-56 object-cover bg-black"
+            style={{ transform: 'scaleX(-1)' }}
+            playsInline
+            muted
+          />
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            style={{ transform: 'scaleX(-1)' }}
+          />
+          {/* Distance guidance overlay */}
+          {distanceHint !== 'ok' && (
+            <div className="absolute top-2 left-0 right-0 flex justify-center">
+              <span className="bg-black/70 text-white text-xs font-medium px-3 py-1.5 rounded-full backdrop-blur-sm">
+                {distanceHint === 'closer'
+                  ? '📱 Move closer to the screen'
+                  : '📱 Move further from the screen'}
+              </span>
+            </div>
+          )}
+          {distanceHint === 'ok' && showCamera && phase !== 'camera' && (
+            <div className="absolute top-2 left-0 right-0 flex justify-center">
+              <span className="bg-emerald-600/80 text-white text-xs font-medium px-3 py-1.5 rounded-full backdrop-blur-sm">
+                ✓ Good distance
+              </span>
+            </div>
+          )}
+        </div>
 
         {/* --- Instructions Phase --- */}
         {phase === 'idle' && (
@@ -143,13 +281,13 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                 A dot will move across the screen for {TEST_DURATION} seconds.
                 Follow it with your eyes while keeping your head still.
-                Hold your phone at arm&apos;s length.
+                Blue outlines will appear over your eyes — adjust your distance until they line up.
               </p>
             </div>
 
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 text-[10px] sm:text-xs text-muted-foreground">
               <Eye className="size-3.5 shrink-0" />
-              <span>Video is processed locally and never stored.</span>
+              <span>Video is processed locally. AI analyses metrics only.</span>
             </div>
 
             {combinedError && (
@@ -174,7 +312,7 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
               {phase === 'camera' ? 'Starting camera...' : 'Look straight ahead — calibrating...'}
             </p>
             <p className="text-[10px] sm:text-xs text-muted-foreground">
-              Keep your face well-lit and centred in the preview.
+              Adjust your distance until the blue outlines line up with your eyes.
             </p>
           </div>
         )}
@@ -223,59 +361,69 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
         {/* --- Complete Phase --- */}
         {phase === 'complete' && result && (
           <div className="px-4 py-4 sm:px-6 sm:py-6 space-y-3 sm:space-y-4 overflow-y-auto">
-            <div className="flex items-center justify-center gap-2 text-emerald-500">
-              <CheckCircle2 className="size-5 sm:size-6" />
-              <span className="font-bold text-sm sm:text-base">Focus Check Complete</span>
-            </div>
+            {/* AI Verdict */}
+            {aiLoading ? (
+              <div className="flex items-center justify-center gap-2 py-2">
+                <Loader2 className="size-5 animate-spin text-primary" />
+                <span className="text-sm font-medium">AI is analysing your results...</span>
+              </div>
+            ) : aiVerdict ? (
+              <Card className={
+                aiVerdict.verdict === 'sober' ? 'border-emerald-500/30 bg-emerald-500/5' :
+                aiVerdict.verdict === 'slightly_impaired' ? 'border-amber-500/30 bg-amber-500/5' :
+                'border-destructive/30 bg-destructive/5'
+              }>
+                <CardContent className="p-3 sm:p-4 text-center space-y-1">
+                  <p className={`text-lg sm:text-xl font-bold ${verdictColor}`}>{verdictLabel}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{aiVerdict.explanation}</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="flex items-center justify-center gap-2 text-emerald-500">
+                <CheckCircle2 className="size-5 sm:size-6" />
+                <span className="font-bold text-sm sm:text-base">Focus Check Complete</span>
+              </div>
+            )}
 
-            <div className="space-y-2 sm:space-y-3">
-              <Card>
-                <CardContent className="p-2.5 sm:p-3 flex items-center justify-between">
-                  <span className="text-xs sm:text-sm text-muted-foreground">Pursuit Gain</span>
-                  <span className="font-bold text-sm">{result.rawMetrics.pursuitGain.toFixed(2)}</span>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-2.5 sm:p-3 flex items-center justify-between">
-                  <span className="text-xs sm:text-sm text-muted-foreground">Saccade Rate</span>
-                  <span className="font-bold text-sm">{result.rawMetrics.saccadeRate.toFixed(1)}/s</span>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-2.5 sm:p-3 flex items-center justify-between">
-                  <span className="text-xs sm:text-sm text-muted-foreground">Position Error</span>
-                  <span className="font-bold text-sm">{result.rawMetrics.positionError.toFixed(3)}</span>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-2.5 sm:p-3 flex items-center justify-between">
-                  <span className="text-xs sm:text-sm text-muted-foreground">Gaze Stability</span>
-                  <span className="font-bold text-sm">{result.rawMetrics.gazeStability.toFixed(3)}</span>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-2.5 sm:p-3 flex items-center justify-between">
-                  <span className="text-xs sm:text-sm text-muted-foreground">Impairment Score</span>
-                  <span className="font-bold text-sm">{result.score.focusDeltaPercent}%</span>
-                </CardContent>
-              </Card>
-              <Card className={result.score.focusDeltaPercent >= 40 ? 'border-rose-500/30' : result.score.focusDeltaPercent >= 25 ? 'border-amber-500/30' : 'border-emerald-500/30'}>
-                <CardContent className="p-2.5 sm:p-3 flex items-center justify-between">
-                  <span className="text-xs sm:text-sm font-medium">Impairment Level</span>
-                  <span className={`text-base sm:text-lg font-bold ${
-                    result.score.focusDeltaPercent >= 40 ? 'text-rose-500' :
-                    result.score.focusDeltaPercent >= 25 ? 'text-amber-500' :
-                    result.score.focusDeltaPercent >= 10 ? 'text-yellow-500' : 'text-emerald-500'
-                  }`}>
-                    {result.score.focusDeltaPercent >= 40 ? 'Strong' :
-                     result.score.focusDeltaPercent >= 25 ? 'Elevated' :
-                     result.score.focusDeltaPercent >= 10 ? 'Mild' : 'Minimal'}
-                  </span>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Raw metrics (collapsed) */}
+            <details className="group">
+              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                View raw metrics
+              </summary>
+              <div className="mt-2 space-y-1.5">
+                <Card>
+                  <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">Pursuit Gain</span>
+                    <span className="font-bold text-xs sm:text-sm">{result.rawMetrics.pursuitGain.toFixed(2)}</span>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">Saccade Rate</span>
+                    <span className="font-bold text-xs sm:text-sm">{result.rawMetrics.saccadeRate.toFixed(1)}/s</span>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">Position Error</span>
+                    <span className="font-bold text-xs sm:text-sm">{result.rawMetrics.positionError.toFixed(3)}</span>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-2 sm:p-2.5 flex items-center justify-between">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">Gaze Stability</span>
+                    <span className="font-bold text-xs sm:text-sm">{result.rawMetrics.gazeStability.toFixed(3)}</span>
+                  </CardContent>
+                </Card>
+              </div>
+            </details>
 
-            <Button onClick={handleSubmit} className="w-full h-11 sm:h-12 rounded-xl" size="lg">
+            <Button
+              onClick={handleSubmit}
+              className="w-full h-11 sm:h-12 rounded-xl"
+              size="lg"
+              disabled={aiLoading}
+            >
               <CheckCircle2 className="mr-2 size-4 sm:size-5" />
               Submit Results
             </Button>
@@ -284,4 +432,30 @@ export function FocusCheck({ onResult, onCancel }: FocusCheckProps) {
       </div>
     </div>
   );
+}
+
+/** Draw a smooth blue outline around an eye contour. */
+function drawEyeOutline(
+  ctx: CanvasRenderingContext2D,
+  contour: { x: number; y: number }[],
+  width: number,
+  height: number,
+) {
+  if (contour.length < 3) return;
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(59, 130, 246, 0.85)'; // blue-500
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.shadowColor = 'rgba(59, 130, 246, 0.5)';
+  ctx.shadowBlur = 6;
+
+  ctx.beginPath();
+  ctx.moveTo(contour[0].x * width, contour[0].y * height);
+  for (let i = 1; i < contour.length; i++) {
+    ctx.lineTo(contour[i].x * width, contour[i].y * height);
+  }
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
 }

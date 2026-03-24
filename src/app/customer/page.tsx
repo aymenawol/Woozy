@@ -780,6 +780,7 @@ function CustomerPageContent() {
             setShowFocusCheck(false);
             setFocusCheckCallback(null);
           }}
+          bacEstimate={bac}
         />
       )}
 
