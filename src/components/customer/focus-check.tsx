@@ -129,9 +129,9 @@ export function FocusCheck({ onResult, onCancel, bacEstimate = 0 }: FocusCheckPr
       ctx!.clearRect(0, 0, w, h);
 
       const face = latestFaceRef.current;
-      if (face && face.leftEyeContour.length > 0) {
-        drawEyeOutline(ctx!, face.leftEyeContour, w, h);
-        drawEyeOutline(ctx!, face.rightEyeContour, w, h);
+      if (face && face.irisRadius > 0) {
+        drawIrisCircle(ctx!, face.leftIrisCenter, face.irisRadius, w, h);
+        drawIrisCircle(ctx!, face.rightIrisCenter, face.irisRadius, w, h);
       }
 
       raf = requestAnimationFrame(draw);
@@ -281,7 +281,6 @@ export function FocusCheck({ onResult, onCancel, bacEstimate = 0 }: FocusCheckPr
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                 A dot will move across the screen for {TEST_DURATION} seconds.
                 Follow it with your eyes while keeping your head still.
-                Blue outlines will appear over your eyes — adjust your distance until they line up.
               </p>
             </div>
 
@@ -312,7 +311,7 @@ export function FocusCheck({ onResult, onCancel, bacEstimate = 0 }: FocusCheckPr
               {phase === 'camera' ? 'Starting camera...' : 'Look straight ahead — calibrating...'}
             </p>
             <p className="text-[10px] sm:text-xs text-muted-foreground">
-              Adjust your distance until the blue outlines line up with your eyes.
+              Move close enough that blue circles appear over your eyes.
             </p>
           </div>
         )}
@@ -434,28 +433,27 @@ export function FocusCheck({ onResult, onCancel, bacEstimate = 0 }: FocusCheckPr
   );
 }
 
-/** Draw a smooth blue outline around an eye contour. */
-function drawEyeOutline(
+/** Draw a blue circle that follows the iris centre. */
+function drawIrisCircle(
   ctx: CanvasRenderingContext2D,
-  contour: { x: number; y: number }[],
+  center: { x: number; y: number },
+  irisRadius: number,
   width: number,
   height: number,
 ) {
-  if (contour.length < 3) return;
+  // Scale radius relative to frame, with a minimum so it's always visible
+  const r = Math.max(irisRadius * width * 1.6, 8);
+  const cx = center.x * width;
+  const cy = center.y * height;
 
   ctx.save();
-  ctx.strokeStyle = 'rgba(59, 130, 246, 0.85)'; // blue-500
-  ctx.lineWidth = 2;
-  ctx.lineJoin = 'round';
-  ctx.shadowColor = 'rgba(59, 130, 246, 0.5)';
-  ctx.shadowBlur = 6;
+  ctx.strokeStyle = 'rgba(59, 130, 246, 0.9)'; // blue-500
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = 'rgba(59, 130, 246, 0.6)';
+  ctx.shadowBlur = 8;
 
   ctx.beginPath();
-  ctx.moveTo(contour[0].x * width, contour[0].y * height);
-  for (let i = 1; i < contour.length; i++) {
-    ctx.lineTo(contour[i].x * width, contour[i].y * height);
-  }
-  ctx.closePath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }

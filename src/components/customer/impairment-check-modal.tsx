@@ -10,13 +10,14 @@ import { Eye, // Focus check icon
   Lock,
   CheckCircle2,
   ArrowRight,
+  X,
 } from 'lucide-react';
 
 interface ImpairmentCheckModalProps {
   onComplete: (results: ImpairmentResult[]) => void;
   onCancel: () => void;
-  /** Callback to launch a specific test — eye-tracking only for now */
   onRunFocusCheck?: (onResult: (result: ImpairmentResult) => void) => void;
+  onRunReactionCheck?: (onResult: (result: ImpairmentResult) => void) => void;
 }
 
 interface CheckOption {
@@ -40,15 +41,15 @@ const CHECK_OPTIONS: CheckOption[] = [
   {
     type: 'reaction',
     title: 'Reaction Check',
-    description: 'Tests response time and dual-task performance with a quick tap challenge.',
+    description: 'Tests your response time with a quick colour-tap challenge.',
     icon: <Zap className="size-8" />,
-    available: false,
+    available: true,
     duration: '20 sec',
   },
   {
     type: 'focus',
     title: 'Focus Check',
-    description: 'MediaPipe iris tracking measures smooth pursuit, jitter, correction frequency, and head stability.',
+    description: 'Tracks eye movement with a follow-the-dot challenge powered by AI.',
     icon: <Eye className="size-8" />,
     available: true,
     duration: '10 sec',
@@ -59,6 +60,7 @@ export function ImpairmentCheckModal({
   onComplete,
   onCancel,
   onRunFocusCheck,
+  onRunReactionCheck,
 }: ImpairmentCheckModalProps) {
   const [selected, setSelected] = useState<Set<ImpairmentCheckType>>(new Set());
   const [completedResults, setCompletedResults] = useState<ImpairmentResult[]>([]);
@@ -91,6 +93,13 @@ export function ImpairmentCheckModal({
         setTestsDone((prev) => new Set(prev).add('focus'));
         setRunningTest(null);
       });
+    } else if (nextTest === 'reaction' && onRunReactionCheck) {
+      setRunningTest('reaction');
+      onRunReactionCheck((result) => {
+        setCompletedResults((prev) => [...prev, result]);
+        setTestsDone((prev) => new Set(prev).add('reaction'));
+        setRunningTest(null);
+      });
     }
   }
 
@@ -106,13 +115,18 @@ export function ImpairmentCheckModal({
     <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4">
       <div className="w-full max-h-[90dvh] sm:max-w-lg rounded-t-2xl sm:rounded-2xl border bg-background shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="px-4 py-4 border-b sm:px-6 sm:py-5">
-          <h2 className="text-lg font-bold tracking-tight sm:text-xl">
-            Before You Close Out — Run an AI Impairment Check
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1 sm:text-sm">
-            Choose at least one check to assess your performance-based impairment risk.
-          </p>
+        <div className="px-4 py-4 border-b sm:px-6 sm:py-5 flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-bold tracking-tight sm:text-xl">
+              Before You Close Out — Run an AI Impairment Check
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1 sm:text-sm">
+              Choose at least one check to assess your performance-based impairment risk.
+            </p>
+          </div>
+          <button onClick={onCancel} className="p-1.5 rounded-full hover:bg-muted shrink-0 mt-0.5">
+            <X className="size-5 text-muted-foreground" />
+          </button>
         </div>
 
         {/* Check Options */}
@@ -195,10 +209,7 @@ export function ImpairmentCheckModal({
 
         {/* Actions */}
         <div className="px-4 py-3 border-t flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-4">
-          <Button variant="ghost" onClick={onCancel} className="text-muted-foreground">
-            Skip for now
-          </Button>
-          <div className="flex gap-2">
+          <div className="flex gap-2 ml-auto">
             {!allSelectedDone && hasSelectedTests && (
               <Button
                 onClick={handleRunTests}

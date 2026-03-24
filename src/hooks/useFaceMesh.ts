@@ -26,6 +26,12 @@ export interface FaceLandmarkData {
   rightEyeContour: { x: number; y: number }[];
   /** Distance between outer eye corners as fraction of frame width (for distance guidance). */
   eyeDistance: number;
+  /** Left iris centre (normalised 0–1). */
+  leftIrisCenter: { x: number; y: number };
+  /** Right iris centre (normalised 0–1). */
+  rightIrisCenter: { x: number; y: number };
+  /** Average iris radius as fraction of frame width. */
+  irisRadius: number;
 }
 
 // Iris landmark indices (refineLandmarks: true)
@@ -126,7 +132,15 @@ function extractData(results: any): FaceLandmarkData | null {
   // ── Inter-eye distance (fraction of frame width, for distance guidance) ──
   const eyeDistance = Math.abs(lm[RIGHT_EYE_OUTER].x - lm[LEFT_EYE_OUTER].x);
 
-  return { gazeX, gazeY, headYaw, headPitch, confidence, leftEyeContour, rightEyeContour, eyeDistance };
+  // ── Iris centres and radius (for drawing iris circles) ──
+  const leftIrisCenter = { x: leftIrisX, y: leftIrisY };
+  const rightIrisCenter = { x: rightIrisX, y: rightIrisY };
+  // Approximate iris radius: average distance from iris landmarks to iris centre
+  const leftIrisRadii = LEFT_IRIS.map((i) => Math.hypot(lm[i].x - leftIrisX, lm[i].y - leftIrisY));
+  const rightIrisRadii = RIGHT_IRIS.map((i) => Math.hypot(lm[i].x - rightIrisX, lm[i].y - rightIrisY));
+  const irisRadius = mean([...leftIrisRadii, ...rightIrisRadii]);
+
+  return { gazeX, gazeY, headYaw, headPitch, confidence, leftEyeContour, rightEyeContour, eyeDistance, leftIrisCenter, rightIrisCenter, irisRadius };
 }
 
 interface UseFaceMeshOptions {

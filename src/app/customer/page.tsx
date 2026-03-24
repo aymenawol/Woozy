@@ -22,6 +22,7 @@ import { ImpairmentCheckModal } from '@/components/customer/impairment-check-mod
 import { ResultsDashboard } from '@/components/customer/results-dashboard';
 import { FloatingChatbot } from '@/components/customer/floating-chatbot';
 import { FocusCheck } from '@/components/customer/focus-check';
+import { ReactionCheck } from '@/components/customer/reaction-check';
 
 
 
@@ -50,6 +51,8 @@ function CustomerPageContent() {
   const [showResultsDashboard, setShowResultsDashboard] = useState(false);
   const [showFocusCheck, setShowFocusCheck] = useState(false);
   const [focusCheckCallback, setFocusCheckCallback] = useState<((r: ImpairmentResult) => void) | null>(null);
+  const [showReactionCheck, setShowReactionCheck] = useState(false);
+  const [reactionCheckCallback, setReactionCheckCallback] = useState<((r: ImpairmentResult) => void) | null>(null);
   const [riskAssessment, setRiskAssessment] = useState<RiskAssessment | null>(null);
   const [projectedMinutes, setProjectedMinutes] = useState<number | undefined>(undefined);
 
@@ -765,6 +768,10 @@ function CustomerPageContent() {
             setFocusCheckCallback(() => onResultCb);
             setShowFocusCheck(true);
           }}
+          onRunReactionCheck={(onResultCb) => {
+            setReactionCheckCallback(() => onResultCb);
+            setShowReactionCheck(true);
+          }}
         />
       )}
 
@@ -781,6 +788,21 @@ function CustomerPageContent() {
             setFocusCheckCallback(null);
           }}
           bacEstimate={bac}
+        />
+      )}
+
+      {/* Reaction Check */}
+      {showReactionCheck && reactionCheckCallback && (
+        <ReactionCheck
+          onResult={(result) => {
+            reactionCheckCallback(result);
+            setShowReactionCheck(false);
+            setReactionCheckCallback(null);
+          }}
+          onCancel={() => {
+            setShowReactionCheck(false);
+            setReactionCheckCallback(null);
+          }}
         />
       )}
 
