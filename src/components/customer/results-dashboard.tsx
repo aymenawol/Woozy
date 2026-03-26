@@ -16,6 +16,7 @@ import {
   Zap,
   MessageCircle,
   TrendingUp,
+  LogOut,
   X,
 } from 'lucide-react';
 
@@ -24,6 +25,7 @@ interface ResultsDashboardProps {
   projectedMinutes?: number;
   onTalkToAI: () => void;
   onClose: () => void;
+  onEndSession: () => void;
 }
 
 function getRiskDisplay(level: string) {
@@ -106,6 +108,7 @@ export function ResultsDashboard({
   projectedMinutes,
   onTalkToAI,
   onClose,
+  onEndSession,
 }: ResultsDashboardProps) {
   const riskDisplay = getRiskDisplay(assessment.impairmentRiskLevel);
 
@@ -223,6 +226,17 @@ export function ResultsDashboard({
           <Button onClick={onTalkToAI} className="w-full h-11 rounded-xl sm:h-12" size="lg">
             <MessageCircle className="mr-2 size-5" />
             Talk to AI About My Results
+          </Button>
+
+          {/* End Session button */}
+          <Button
+            onClick={onEndSession}
+            variant="destructive"
+            className="w-full h-11 rounded-xl sm:h-12"
+            size="lg"
+          >
+            <LogOut className="mr-2 size-5" />
+            End Session
           </Button>
         </div>
 

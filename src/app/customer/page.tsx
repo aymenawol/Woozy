@@ -51,11 +51,11 @@ function CustomerPageContent() {
   const [showImpairmentModal, setShowImpairmentModal] = useState(false);
   const [showResultsDashboard, setShowResultsDashboard] = useState(false);
   const [showFocusCheck, setShowFocusCheck] = useState(false);
-  const [focusCheckCallback, setFocusCheckCallback] = useState<((r: ImpairmentResult) => void) | null>(null);
+  const [focusCheckCallback, setFocusCheckCallback] = useState<((r: ImpairmentResult | null) => void) | null>(null);
   const [showReactionCheck, setShowReactionCheck] = useState(false);
-  const [reactionCheckCallback, setReactionCheckCallback] = useState<((r: ImpairmentResult) => void) | null>(null);
+  const [reactionCheckCallback, setReactionCheckCallback] = useState<((r: ImpairmentResult | null) => void) | null>(null);
   const [showStabilityCheck, setShowStabilityCheck] = useState(false);
-  const [stabilityCheckCallback, setStabilityCheckCallback] = useState<((r: ImpairmentResult) => void) | null>(null);
+  const [stabilityCheckCallback, setStabilityCheckCallback] = useState<((r: ImpairmentResult | null) => void) | null>(null);
   const [riskAssessment, setRiskAssessment] = useState<RiskAssessment | null>(null);
   const [projectedMinutes, setProjectedMinutes] = useState<number | undefined>(undefined);
 
@@ -375,6 +375,11 @@ function CustomerPageContent() {
   // ---- Trigger impairment check modal (called instead of ending directly) ----
   function requestEndSession() {
     if (!customer || !session) return;
+    if (riskAssessment) {
+      // Already completed checks — re-show results
+      setShowResultsDashboard(true);
+      return;
+    }
     setShowImpairmentModal(true);
   }
 
@@ -791,6 +796,7 @@ function CustomerPageContent() {
             setFocusCheckCallback(null);
           }}
           onCancel={() => {
+            if (focusCheckCallback) focusCheckCallback(null);
             setShowFocusCheck(false);
             setFocusCheckCallback(null);
           }}
@@ -807,6 +813,7 @@ function CustomerPageContent() {
             setReactionCheckCallback(null);
           }}
           onCancel={() => {
+            if (reactionCheckCallback) reactionCheckCallback(null);
             setShowReactionCheck(false);
             setReactionCheckCallback(null);
           }}
@@ -822,6 +829,7 @@ function CustomerPageContent() {
             setStabilityCheckCallback(null);
           }}
           onCancel={() => {
+            if (stabilityCheckCallback) stabilityCheckCallback(null);
             setShowStabilityCheck(false);
             setStabilityCheckCallback(null);
           }}
@@ -834,7 +842,8 @@ function CustomerPageContent() {
           assessment={riskAssessment}
           projectedMinutes={projectedMinutes}
           onTalkToAI={openChatWithResults}
-          onClose={confirmEndSession}
+          onClose={() => setShowResultsDashboard(false)}
+          onEndSession={confirmEndSession}
         />
       )}
 

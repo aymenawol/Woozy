@@ -16,9 +16,9 @@ import { Eye, // Focus check icon
 interface ImpairmentCheckModalProps {
   onComplete: (results: ImpairmentResult[]) => void;
   onCancel: () => void;
-  onRunFocusCheck?: (onResult: (result: ImpairmentResult) => void) => void;
-  onRunReactionCheck?: (onResult: (result: ImpairmentResult) => void) => void;
-  onRunStabilityCheck?: (onResult: (result: ImpairmentResult) => void) => void;
+  onRunFocusCheck?: (onResult: (result: ImpairmentResult | null) => void) => void;
+  onRunReactionCheck?: (onResult: (result: ImpairmentResult | null) => void) => void;
+  onRunStabilityCheck?: (onResult: (result: ImpairmentResult | null) => void) => void;
 }
 
 interface CheckOption {
@@ -45,7 +45,7 @@ const CHECK_OPTIONS: CheckOption[] = [
     description: 'Tests your response time with a quick colour-tap challenge.',
     icon: <Zap className="size-8" />,
     available: true,
-    duration: '20 sec',
+    duration: '10 sec',
   },
   {
     type: 'focus',
@@ -91,22 +91,28 @@ export function ImpairmentCheckModal({
     if (nextTest === 'focus' && onRunFocusCheck) {
       setRunningTest('focus');
       onRunFocusCheck((result) => {
-        setCompletedResults((prev) => [...prev, result]);
-        setTestsDone((prev) => new Set(prev).add('focus'));
+        if (result) {
+          setCompletedResults((prev) => [...prev, result]);
+          setTestsDone((prev) => new Set(prev).add('focus'));
+        }
         setRunningTest(null);
       });
     } else if (nextTest === 'reaction' && onRunReactionCheck) {
       setRunningTest('reaction');
       onRunReactionCheck((result) => {
-        setCompletedResults((prev) => [...prev, result]);
-        setTestsDone((prev) => new Set(prev).add('reaction'));
+        if (result) {
+          setCompletedResults((prev) => [...prev, result]);
+          setTestsDone((prev) => new Set(prev).add('reaction'));
+        }
         setRunningTest(null);
       });
     } else if (nextTest === 'stability' && onRunStabilityCheck) {
       setRunningTest('stability');
       onRunStabilityCheck((result) => {
-        setCompletedResults((prev) => [...prev, result]);
-        setTestsDone((prev) => new Set(prev).add('stability'));
+        if (result) {
+          setCompletedResults((prev) => [...prev, result]);
+          setTestsDone((prev) => new Set(prev).add('stability'));
+        }
         setRunningTest(null);
       });
     }
@@ -224,7 +230,7 @@ export function ImpairmentCheckModal({
                 onClick={handleRunTests}
                 disabled={!hasSelectedTests || !!runningTest}
               >
-                {runningTest ? 'Running...' : 'Run Selected Checks'}
+                {runningTest ? 'Running...' : testsDone.size > 0 ? 'Run Next Check' : 'Run Selected Checks'}
               </Button>
             )}
             {hasCompletedAtLeastOne && (

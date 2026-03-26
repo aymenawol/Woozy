@@ -284,9 +284,8 @@ export function FocusCheck({ onResult, onCancel, bacEstimate = 0 }: FocusCheckPr
               </p>
             </div>
 
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 text-[10px] sm:text-xs text-muted-foreground">
-              <Eye className="size-3.5 shrink-0" />
-              <span>Video is processed locally. AI analyses metrics only.</span>
+            <div className="px-3 py-2 rounded-lg bg-muted/50 text-[10px] sm:text-xs text-muted-foreground text-center">
+              Video is processed locally. AI analyses metrics only.
             </div>
 
             {combinedError && (

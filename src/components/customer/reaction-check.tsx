@@ -15,11 +15,11 @@ import { Zap, X, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
 // and variance. Runs for ~20 seconds (or N rounds).
 // ============================================================
 
-const TOTAL_ROUNDS = 12;
-const MIN_DELAY_MS = 800;
-const MAX_DELAY_MS = 2500;
-const TARGET_TIMEOUT_MS = 3000; // miss if not tapped within this
-const TEST_DURATION_LABEL = '20 sec';
+const TOTAL_ROUNDS = 6;
+const MIN_DELAY_MS = 400;
+const MAX_DELAY_MS = 1200;
+const TARGET_TIMEOUT_MS = 2000; // miss if not tapped within this
+const TEST_DURATION_LABEL = '10 sec';
 
 type Phase = 'idle' | 'countdown' | 'running' | 'complete';
 
