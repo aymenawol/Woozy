@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { ImpairmentResult, ImpairmentCheckType } from '@/lib/impairment-types';
 import { Eye, // Focus check icon
   Activity, // Stability icon
-  Zap, // Reaction icon
   Lock,
   CheckCircle2,
   ArrowRight,
@@ -17,7 +16,6 @@ interface ImpairmentCheckModalProps {
   onComplete: (results: ImpairmentResult[]) => void;
   onCancel: () => void;
   onRunFocusCheck?: (onResult: (result: ImpairmentResult | null) => void) => void;
-  onRunReactionCheck?: (onResult: (result: ImpairmentResult | null) => void) => void;
   onRunStabilityCheck?: (onResult: (result: ImpairmentResult | null) => void) => void;
 }
 
@@ -40,14 +38,6 @@ const CHECK_OPTIONS: CheckOption[] = [
     duration: '20 sec',
   },
   {
-    type: 'reaction',
-    title: 'Reaction Check',
-    description: 'Tests your response time with a quick colour-tap challenge.',
-    icon: <Zap className="size-8" />,
-    available: true,
-    duration: '10 sec',
-  },
-  {
     type: 'focus',
     title: 'Focus Check',
     description: 'Tracks eye movement with a follow-the-dot challenge powered by AI.',
@@ -61,7 +51,6 @@ export function ImpairmentCheckModal({
   onComplete,
   onCancel,
   onRunFocusCheck,
-  onRunReactionCheck,
   onRunStabilityCheck,
 }: ImpairmentCheckModalProps) {
   const [selected, setSelected] = useState<Set<ImpairmentCheckType>>(new Set());
@@ -97,15 +86,6 @@ export function ImpairmentCheckModal({
         }
         setRunningTest(null);
       });
-    } else if (nextTest === 'reaction' && onRunReactionCheck) {
-      setRunningTest('reaction');
-      onRunReactionCheck((result) => {
-        if (result) {
-          setCompletedResults((prev) => [...prev, result]);
-          setTestsDone((prev) => new Set(prev).add('reaction'));
-        }
-        setRunningTest(null);
-      });
     } else if (nextTest === 'stability' && onRunStabilityCheck) {
       setRunningTest('stability');
       onRunStabilityCheck((result) => {
@@ -136,7 +116,7 @@ export function ImpairmentCheckModal({
               Before You Close Out — Run an AI Impairment Check
             </h2>
             <p className="text-xs text-muted-foreground mt-1 sm:text-sm">
-              Choose at least one check to assess your performance-based impairment risk.
+              Pick a check to assess your performance-based impairment risk.
             </p>
           </div>
           <button onClick={onCancel} className="p-1.5 rounded-full hover:bg-muted shrink-0 mt-0.5">

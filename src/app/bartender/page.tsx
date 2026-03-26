@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useActiveSessions } from "@/hooks/use-active-sessions";
 import { CustomerSidebar } from "@/components/bartender/customer-sidebar";
 import { SessionDetail } from "@/components/bartender/session-detail";
@@ -34,6 +34,16 @@ export default function BartenderPage() {
     sessions.find((s) => s.id === selectedId) ?? sessions[0] ?? null;
 
   const effectiveId = selectedSession?.id ?? null;
+
+  // Auto-close QR modal when a new customer session appears
+  const prevSessionCountRef = useRef(sessions.length);
+  useEffect(() => {
+    if (sessions.length > prevSessionCountRef.current && showQR) {
+      setShowQR(false);
+      setQrJoinToken(null);
+    }
+    prevSessionCountRef.current = sessions.length;
+  }, [sessions.length, showQR]);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   // When QR overlay is open, use the token we created for it; otherwise use selected session's token

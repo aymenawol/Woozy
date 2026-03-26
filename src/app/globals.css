@@ -82,6 +82,13 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* Purple theme for customer-facing pages */
+.customer-theme {
+  --primary: oklch(0.546 0.245 275);
+  --primary-foreground: oklch(1 0 0);
+  --ring: oklch(0.546 0.245 275);
+}
+
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);

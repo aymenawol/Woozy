@@ -22,7 +22,6 @@ import { ImpairmentCheckModal } from '@/components/customer/impairment-check-mod
 import { ResultsDashboard } from '@/components/customer/results-dashboard';
 import { FloatingChatbot } from '@/components/customer/floating-chatbot';
 import { FocusCheck } from '@/components/customer/focus-check';
-import { ReactionCheck } from '@/components/customer/reaction-check';
 import { StabilityCheck } from '@/components/customer/stability-check';
 
 
@@ -52,8 +51,6 @@ function CustomerPageContent() {
   const [showResultsDashboard, setShowResultsDashboard] = useState(false);
   const [showFocusCheck, setShowFocusCheck] = useState(false);
   const [focusCheckCallback, setFocusCheckCallback] = useState<((r: ImpairmentResult | null) => void) | null>(null);
-  const [showReactionCheck, setShowReactionCheck] = useState(false);
-  const [reactionCheckCallback, setReactionCheckCallback] = useState<((r: ImpairmentResult | null) => void) | null>(null);
   const [showStabilityCheck, setShowStabilityCheck] = useState(false);
   const [stabilityCheckCallback, setStabilityCheckCallback] = useState<((r: ImpairmentResult | null) => void) | null>(null);
   const [riskAssessment, setRiskAssessment] = useState<RiskAssessment | null>(null);
@@ -492,7 +489,7 @@ function CustomerPageContent() {
   // ============================================================
   if (!session) {
     return (
-      <>
+      <div className="customer-theme">
         {showScanner && (
           <div className="fixed inset-0 z-50 flex flex-col bg-black">
             <div className="relative flex-1 min-h-0 flex flex-col">
@@ -592,7 +589,7 @@ function CustomerPageContent() {
           </Card>
         </div>
       </main>
-      </>
+      </div>
     );
   }
 
@@ -600,7 +597,7 @@ function CustomerPageContent() {
   // ACTIVE SESSION SCREEN
   // ============================================================
   return (
-    <div className="flex h-[100dvh] w-full flex-col bg-muted/30">
+    <div className="customer-theme flex h-[100dvh] w-full flex-col bg-muted/30">
     <main className="flex-1 overflow-y-auto">
       <div className="mx-auto w-full max-w-md space-y-3 p-3 pt-[max(0.75rem,env(safe-area-inset-top,12px))] pb-2 sm:space-y-6 sm:p-4 sm:pt-8">
 
@@ -776,10 +773,6 @@ function CustomerPageContent() {
             setFocusCheckCallback(() => onResultCb);
             setShowFocusCheck(true);
           }}
-          onRunReactionCheck={(onResultCb) => {
-            setReactionCheckCallback(() => onResultCb);
-            setShowReactionCheck(true);
-          }}
           onRunStabilityCheck={(onResultCb) => {
             setStabilityCheckCallback(() => onResultCb);
             setShowStabilityCheck(true);
@@ -801,22 +794,6 @@ function CustomerPageContent() {
             setFocusCheckCallback(null);
           }}
           bacEstimate={bac}
-        />
-      )}
-
-      {/* Reaction Check */}
-      {showReactionCheck && reactionCheckCallback && (
-        <ReactionCheck
-          onResult={(result) => {
-            reactionCheckCallback(result);
-            setShowReactionCheck(false);
-            setReactionCheckCallback(null);
-          }}
-          onCancel={() => {
-            if (reactionCheckCallback) reactionCheckCallback(null);
-            setShowReactionCheck(false);
-            setReactionCheckCallback(null);
-          }}
         />
       )}
 
