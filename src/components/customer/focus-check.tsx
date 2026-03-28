@@ -115,8 +115,7 @@ export function FocusCheck({ onResult, onCancel, bacEstimate = 0 }: FocusCheckPr
 
       const face = latestFaceRef.current;
       if (face && face.irisRadius > 0) {
-        drawIrisCircle(ctx!, face.leftIrisCenter, face.irisRadius, w, h);
-        drawIrisCircle(ctx!, face.rightIrisCenter, face.irisRadius, w, h);
+        drawEyeFrameBrackets(ctx!, face.leftIrisCenter, face.rightIrisCenter, face.irisRadius, w, h);
       }
 
       raf = requestAnimationFrame(draw);
@@ -261,7 +260,7 @@ export function FocusCheck({ onResult, onCancel, bacEstimate = 0 }: FocusCheckPr
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">2</div>
-                <span className="text-sm text-muted-foreground">Position your face so eye shapes appear over your eyes</span>
+                <span className="text-sm text-muted-foreground">Position your face so brackets appear around your eyes</span>
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">3</div>
@@ -297,7 +296,7 @@ export function FocusCheck({ onResult, onCancel, bacEstimate = 0 }: FocusCheckPr
               {phase === 'camera' ? 'Starting camera...' : 'Look straight ahead — calibrating...'}
             </p>
             <p className="text-xs text-muted-foreground">
-              Position your face in frame — eye shapes will appear when detected.
+              Position your face in frame — brackets will appear when detected.
             </p>
           </div>
         )}
@@ -421,51 +420,73 @@ export function FocusCheck({ onResult, onCancel, bacEstimate = 0 }: FocusCheckPr
   );
 }
 
-/** Draw a purple eye shape that follows the iris centre. */
-function drawIrisCircle(
+/** Draw purple corner-frame brackets around the eye region. */
+function drawEyeFrameBrackets(
   ctx: CanvasRenderingContext2D,
-  center: { x: number; y: number },
+  leftCenter: { x: number; y: number },
+  rightCenter: { x: number; y: number },
   irisRadius: number,
   width: number,
   height: number,
 ) {
+  const lx = leftCenter.x * width;
+  const ly = leftCenter.y * height;
+  const rx = rightCenter.x * width;
+  const ry = rightCenter.y * height;
+
+  // Midpoint and eye span
+  const midX = (lx + rx) / 2;
+  const midY = (ly + ry) / 2;
+  const eyeSpan = Math.abs(rx - lx);
   const r = Math.max(irisRadius * width * 1.6, 8);
-  const cx = center.x * width;
-  const cy = center.y * height;
-  const eyeW = r * 2.2;
-  const eyeH = r * 1.2;
+
+  // Rectangle padded around the eye area
+  const padX = r * 1.8;
+  const padY = r * 2.2;
+  const left = midX - eyeSpan / 2 - padX;
+  const right = midX + eyeSpan / 2 + padX;
+  const top = midY - padY;
+  const bottom = midY + padY;
+
+  // Corner length (fraction of the shorter side)
+  const rectW = right - left;
+  const rectH = bottom - top;
+  const cornerLen = Math.min(rectW, rectH) * 0.25;
 
   ctx.save();
-
-  // Purple eye outline
-  ctx.strokeStyle = 'rgba(147, 51, 234, 0.9)'; // purple-600
-  ctx.fillStyle = 'rgba(147, 51, 234, 0.08)';
+  ctx.strokeStyle = 'rgba(147, 51, 234, 0.9)';
   ctx.lineWidth = 2.5;
-  ctx.shadowColor = 'rgba(147, 51, 234, 0.5)';
-  ctx.shadowBlur = 10;
+  ctx.lineCap = 'round';
+  ctx.shadowColor = 'rgba(147, 51, 234, 0.45)';
+  ctx.shadowBlur = 8;
 
-  // Draw eye shape (two arcs)
+  // Top-left corner
   ctx.beginPath();
-  ctx.moveTo(cx - eyeW, cy);
-  ctx.bezierCurveTo(cx - eyeW * 0.6, cy - eyeH, cx + eyeW * 0.6, cy - eyeH, cx + eyeW, cy);
-  ctx.bezierCurveTo(cx + eyeW * 0.6, cy + eyeH, cx - eyeW * 0.6, cy + eyeH, cx - eyeW, cy);
-  ctx.closePath();
-  ctx.fill();
+  ctx.moveTo(left, top + cornerLen);
+  ctx.lineTo(left, top);
+  ctx.lineTo(left + cornerLen, top);
   ctx.stroke();
 
-  // Draw iris circle inside
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = 'rgba(147, 51, 234, 0.7)';
-  ctx.lineWidth = 1.5;
+  // Top-right corner
   ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.55, 0, Math.PI * 2);
+  ctx.moveTo(right - cornerLen, top);
+  ctx.lineTo(right, top);
+  ctx.lineTo(right, top + cornerLen);
   ctx.stroke();
 
-  // Draw pupil dot
-  ctx.fillStyle = 'rgba(147, 51, 234, 0.6)';
+  // Bottom-left corner
   ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.2, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.moveTo(left, bottom - cornerLen);
+  ctx.lineTo(left, bottom);
+  ctx.lineTo(left + cornerLen, bottom);
+  ctx.stroke();
+
+  // Bottom-right corner
+  ctx.beginPath();
+  ctx.moveTo(right - cornerLen, bottom);
+  ctx.lineTo(right, bottom);
+  ctx.lineTo(right, bottom - cornerLen);
+  ctx.stroke();
 
   ctx.restore();
 }
