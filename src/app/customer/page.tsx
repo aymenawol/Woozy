@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useState, useCallback, useRef } from 'react';
 import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -16,7 +17,7 @@ import { ImpairmentResult, RiskAssessment, DEFAULT_USER_PROFILE } from '@/lib/im
 import { Customer, Session, Drink } from '@/lib/types';
 import { DRINK_MENU } from '@/lib/menu';
 import {
-  Wine, Activity, User, LogOut, AlertTriangle, QrCode, Scale, Users, Phone, GlassWater, Clock, Home, Info,
+  Activity, User, LogOut, AlertTriangle, QrCode, Scale, Users, Phone, GlassWater, Clock, Home, Info,
 } from 'lucide-react';
 import { ImpairmentCheckModal } from '@/components/customer/impairment-check-modal';
 import { ResultsDashboard } from '@/components/customer/results-dashboard';
@@ -524,8 +525,8 @@ function CustomerPageContent() {
       {/* Sticky header */}
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b px-4 py-3">
         <div className="mx-auto max-w-md flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10">
-            <Wine className="size-5 text-primary" />
+          <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 overflow-hidden">
+            <Image src="/logo.png" alt="Woozy" width={36} height={36} className="size-7 object-contain" />
           </div>
           <h1 className="text-lg font-bold tracking-tight">Woozy</h1>
         </div>
@@ -640,8 +641,8 @@ function CustomerPageContent() {
         {/* Header */}
         <header className="flex items-center justify-between px-1 sm:px-2">
           <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10">
-              <Wine className="size-5 text-primary" />
+            <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 overflow-hidden">
+              <Image src="/logo.png" alt="Woozy" width={36} height={36} className="size-7 object-contain" />
             </div>
             <div>
               <h1 className="text-lg font-bold tracking-tight">Active Session</h1>

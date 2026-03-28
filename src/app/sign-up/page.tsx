@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Wine } from 'lucide-react';
+import Image from 'next/image';
 
 function SignUpPageContent() {
   const router = useRouter();
@@ -69,8 +69,8 @@ function SignUpPageContent() {
     <main className="customer-theme flex min-h-[100dvh] w-full flex-col items-center justify-center bg-background px-4 sm:px-6">
       <div className="w-full max-w-sm space-y-8 text-center">
         <div className="space-y-3">
-          <div className="mx-auto flex size-20 items-center justify-center rounded-2xl bg-primary/10">
-            <Wine className="size-10 text-primary" />
+          <div className="mx-auto flex size-20 items-center justify-center rounded-2xl bg-primary/10 overflow-hidden">
+            <Image src="/logo.png" alt="Woozy" width={80} height={80} className="size-16 object-contain" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight">Woozy</h1>
           <p className="text-sm text-muted-foreground">Your personal drinking companion</p>
