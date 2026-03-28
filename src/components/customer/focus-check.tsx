@@ -19,11 +19,6 @@ import { DotTrackerCanvas } from './dot-tracker-canvas';
 //  - AI-powered impairment determination (GPT)
 // ============================================================
 
-// Ideal inter-eye distance as fraction of frame width
-// (~0.20–0.30 means face fills roughly 1/3 of frame)
-const IDEAL_EYE_DIST_MIN = 0.18;
-const IDEAL_EYE_DIST_MAX = 0.35;
-
 interface FocusCheckProps {
   onResult: (result: ImpairmentResult) => void;
   onCancel: () => void;
@@ -43,7 +38,6 @@ export function FocusCheck({ onResult, onCancel, bacEstimate = 0 }: FocusCheckPr
 
   // Latest face data for drawing overlays + distance guidance
   const latestFaceRef = useRef<FaceLandmarkData | null>(null);
-  const [distanceHint, setDistanceHint] = useState<'ok' | 'closer' | 'further'>('ok');
   const [aiVerdict, setAiVerdict] = useState<AIVerdict | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
@@ -63,15 +57,6 @@ export function FocusCheck({ onResult, onCancel, bacEstimate = 0 }: FocusCheckPr
   const handleFaceData = useCallback((data: FaceLandmarkData) => {
     latestFaceRef.current = data;
     recordFrame(data);
-
-    // Distance guidance based on inter-eye distance
-    if (data.eyeDistance < IDEAL_EYE_DIST_MIN) {
-      setDistanceHint('closer');
-    } else if (data.eyeDistance > IDEAL_EYE_DIST_MAX) {
-      setDistanceHint('further');
-    } else {
-      setDistanceHint('ok');
-    }
   }, [recordFrame]);
 
   // Wire FaceMesh → handleFaceData
@@ -251,23 +236,7 @@ export function FocusCheck({ onResult, onCancel, bacEstimate = 0 }: FocusCheckPr
             className="absolute inset-0 w-full h-full pointer-events-none"
             style={{ transform: 'scaleX(-1)' }}
           />
-          {/* Distance guidance overlay */}
-          {distanceHint !== 'ok' && (
-            <div className="absolute top-3 left-0 right-0 flex justify-center">
-              <span className="bg-black/70 text-white text-xs font-medium px-4 py-2 rounded-full backdrop-blur-sm">
-                {distanceHint === 'closer'
-                  ? '📱 Move closer to the screen'
-                  : '📱 Move further from the screen'}
-              </span>
-            </div>
-          )}
-          {distanceHint === 'ok' && showCamera && phase !== 'camera' && (
-            <div className="absolute top-3 left-0 right-0 flex justify-center">
-              <span className="bg-emerald-600/80 text-white text-xs font-medium px-4 py-2 rounded-full backdrop-blur-sm">
-                ✓ Good distance
-              </span>
-            </div>
-          )}
+          {/* Dot tracking progress during tracking phase */}
         </div>
 
         {/* --- Instructions Phase --- */}
@@ -292,7 +261,7 @@ export function FocusCheck({ onResult, onCancel, bacEstimate = 0 }: FocusCheckPr
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">2</div>
-                <span className="text-sm text-muted-foreground">Position your face so blue circles appear over your eyes</span>
+                <span className="text-sm text-muted-foreground">Position your face so eye shapes appear over your eyes</span>
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">3</div>
@@ -328,7 +297,7 @@ export function FocusCheck({ onResult, onCancel, bacEstimate = 0 }: FocusCheckPr
               {phase === 'camera' ? 'Starting camera...' : 'Look straight ahead — calibrating...'}
             </p>
             <p className="text-xs text-muted-foreground">
-              Move close enough that blue circles appear over your eyes.
+              Position your face in frame — eye shapes will appear when detected.
             </p>
           </div>
         )}
@@ -452,7 +421,7 @@ export function FocusCheck({ onResult, onCancel, bacEstimate = 0 }: FocusCheckPr
   );
 }
 
-/** Draw a blue circle that follows the iris centre. */
+/** Draw a purple eye shape that follows the iris centre. */
 function drawIrisCircle(
   ctx: CanvasRenderingContext2D,
   center: { x: number; y: number },
@@ -460,19 +429,43 @@ function drawIrisCircle(
   width: number,
   height: number,
 ) {
-  // Scale radius relative to frame, with a minimum so it's always visible
   const r = Math.max(irisRadius * width * 1.6, 8);
   const cx = center.x * width;
   const cy = center.y * height;
+  const eyeW = r * 2.2;
+  const eyeH = r * 1.2;
 
   ctx.save();
-  ctx.strokeStyle = 'rgba(59, 130, 246, 0.9)'; // blue-500
-  ctx.lineWidth = 2.5;
-  ctx.shadowColor = 'rgba(59, 130, 246, 0.6)';
-  ctx.shadowBlur = 8;
 
+  // Purple eye outline
+  ctx.strokeStyle = 'rgba(147, 51, 234, 0.9)'; // purple-600
+  ctx.fillStyle = 'rgba(147, 51, 234, 0.08)';
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = 'rgba(147, 51, 234, 0.5)';
+  ctx.shadowBlur = 10;
+
+  // Draw eye shape (two arcs)
   ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.moveTo(cx - eyeW, cy);
+  ctx.bezierCurveTo(cx - eyeW * 0.6, cy - eyeH, cx + eyeW * 0.6, cy - eyeH, cx + eyeW, cy);
+  ctx.bezierCurveTo(cx + eyeW * 0.6, cy + eyeH, cx - eyeW * 0.6, cy + eyeH, cx - eyeW, cy);
+  ctx.closePath();
+  ctx.fill();
   ctx.stroke();
+
+  // Draw iris circle inside
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(147, 51, 234, 0.7)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.55, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Draw pupil dot
+  ctx.fillStyle = 'rgba(147, 51, 234, 0.6)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
   ctx.restore();
 }

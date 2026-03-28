@@ -22,12 +22,12 @@ export function CustomerSidebar({
   return (
     <aside className="flex w-72 shrink-0 flex-col border-r bg-sidebar h-full">
       <div className="border-b px-4 py-3">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex justify-end mb-2">
           <Image src="/logo1.png" alt="Woozy" width={32} height={32} className="h-6 w-auto object-contain" />
-          <h2 className="text-sm font-semibold tracking-tight">
-            Active Customers
-          </h2>
         </div>
+        <h2 className="text-sm font-semibold tracking-tight">
+          Active Customers
+        </h2>
         <p className="text-xs text-muted-foreground">
           {sessions.length} session{sessions.length !== 1 ? "s" : ""}
         </p>
