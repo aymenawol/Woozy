@@ -6,6 +6,7 @@ import { CustomerSidebar } from "@/components/bartender/customer-sidebar";
 import { SessionDetail } from "@/components/bartender/session-detail";
 import { Button } from "@/components/ui/button";
 import { QrCode, X, Menu, ChevronLeft } from "lucide-react";
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import dynamic from "next/dynamic";
 
 const QRCode = dynamic(
@@ -116,6 +117,7 @@ export default function BartenderPage() {
           <span className="text-xs text-muted-foreground">
             {sessions.length} session{sessions.length !== 1 ? 's' : ''}
           </span>
+          <ThemeToggle />
         </div>
 
         {selectedSession ? (

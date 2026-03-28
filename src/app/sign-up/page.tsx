@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 function SignUpPageContent() {
   const router = useRouter();
@@ -67,12 +68,12 @@ function SignUpPageContent() {
 
   return (
     <main className="customer-theme flex min-h-[100dvh] w-full flex-col items-center justify-center bg-background px-4 sm:px-6">
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm space-y-8 text-center">
         <div className="space-y-3">
-          <div className="mx-auto flex size-20 items-center justify-center rounded-2xl bg-primary/10 overflow-hidden">
-            <Image src="/logo.png" alt="Woozy" width={80} height={80} className="size-16 object-contain" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight">Woozy</h1>
+          <Image src="/logo.png" alt="Woozy" width={120} height={120} className="mx-auto size-24 object-contain" />
           <p className="text-sm text-muted-foreground">Your personal drinking companion</p>
         </div>
 

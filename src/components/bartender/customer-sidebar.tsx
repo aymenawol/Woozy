@@ -5,6 +5,7 @@ import { estimateBAC, formatBAC } from "@/lib/bac";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface CustomerSidebarProps {
   sessions: ActiveSession[];
@@ -85,6 +86,10 @@ export function CustomerSidebar({
           })}
         </div>
       </ScrollArea>
+      <div className="border-t px-4 py-3 flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">Appearance</span>
+        <ThemeToggle />
+      </div>
     </aside>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useState, useCallback, useRef } from 'react';
 import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,7 +18,7 @@ import { ImpairmentResult, RiskAssessment, DEFAULT_USER_PROFILE } from '@/lib/im
 import { Customer, Session, Drink } from '@/lib/types';
 import { DRINK_MENU } from '@/lib/menu';
 import {
-  Activity, User, LogOut, AlertTriangle, QrCode, Scale, Users, Phone, GlassWater, Clock, Home, Info,
+  Activity, User, LogOut, AlertTriangle, QrCode, Scale, Users, Phone, GlassWater, Clock, Home, Info, Sun,
 } from 'lucide-react';
 import { ImpairmentCheckModal } from '@/components/customer/impairment-check-modal';
 import { ResultsDashboard } from '@/components/customer/results-dashboard';
@@ -525,10 +526,9 @@ function CustomerPageContent() {
       {/* Sticky header */}
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b px-4 py-3">
         <div className="mx-auto max-w-md flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 overflow-hidden">
-            <Image src="/logo.png" alt="Woozy" width={36} height={36} className="size-7 object-contain" />
-          </div>
-          <h1 className="text-lg font-bold tracking-tight">Woozy</h1>
+          <Image src="/logo.png" alt="Woozy" width={40} height={40} className="h-8 w-auto object-contain" />
+          <div className="flex-1" />
+          <ThemeToggle />
         </div>
       </header>
       <main className="flex min-h-[calc(100dvh-57px)] w-full flex-col items-center justify-start bg-background px-4 py-6 sm:justify-center sm:px-6 sm:py-8 overflow-y-auto">
@@ -641,9 +641,7 @@ function CustomerPageContent() {
         {/* Header */}
         <header className="flex items-center justify-between px-1 sm:px-2">
           <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 overflow-hidden">
-              <Image src="/logo.png" alt="Woozy" width={36} height={36} className="size-7 object-contain" />
-            </div>
+            <Image src="/logo.png" alt="Woozy" width={40} height={40} className="h-8 w-auto object-contain" />
             <div>
               <h1 className="text-lg font-bold tracking-tight">Active Session</h1>
               <p className="text-xs text-muted-foreground">
@@ -842,6 +840,13 @@ function CustomerPageContent() {
                   <span className="text-sm text-muted-foreground tabular-nums">
                     {(drinks.length / Math.max(hoursElapsed, 0.1)).toFixed(1)} drinks/hr
                   </span>
+                </div>
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-2.5">
+                    <Sun className="size-4 text-muted-foreground" />
+                    <span className="font-medium text-sm">Appearance</span>
+                  </div>
+                  <ThemeToggle />
                 </div>
               </CardContent>
             </Card>
